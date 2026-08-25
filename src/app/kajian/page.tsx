@@ -6,13 +6,10 @@ import {
   FileText, 
   Printer, 
   Download, 
-  ExternalLink, 
   Sparkles, 
-  BookOpen, 
-  Calendar, 
   User, 
   Building2,
-  CheckCircle2
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import KajianDocModal from '@/components/ai/KajianDocModal';
@@ -32,101 +29,92 @@ export default function BahanKajianPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <FileText className="w-6 h-6 text-gmni-red" />
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans">
+            <h1 className="text-xl sm:text-2xl font-bold text-ink-primary">
               Arsip Bahan Kajian & Policy Brief
             </h1>
-            <span className="text-xs font-semibold px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
-              {kajianDocs.length} Dokumen Resmi
+            <span className="text-xs font-mono px-2 py-0.5 bg-stone-100 text-ink-secondary rounded border border-border">
+              {kajianDocs.length} Dokumen
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
             Kumpulan naskah akademik, policy brief advokasi, dan position paper GMNI Wastukancana Purwakarta.
           </p>
         </div>
 
         <Link
           href="/ai-analyst"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-gmni-red hover:bg-red-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors shrink-0"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors shrink-0"
         >
-          <Sparkles className="w-4 h-4 text-amber-300" />
-          <span>Buat Bahan Kajian Baru dengan AI</span>
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Buat Bahan Kajian Baru</span>
         </Link>
       </div>
 
       {/* Kajian Documents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {kajianDocs.map(doc => (
           <div
             key={doc.id}
-            className="bg-white rounded-2xl border border-slate-200 shadow-subtle hover:border-slate-300 hover:shadow-card-hover transition-all p-6 flex flex-col justify-between space-y-4 group"
+            className="bg-surface rounded-card border border-border shadow-subtle hover:border-stone-400 hover:shadow-card-hover transition-all p-6 flex flex-col justify-between space-y-4 group"
           >
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded bg-red-50 text-gmni-red border border-red-200 font-mono">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-stone-100 text-primary border border-border font-mono">
                   {doc.status}
                 </span>
-                <span className="text-xs text-slate-400 font-mono">
+                <span className="text-ink-tertiary font-mono">
                   {doc.date_created}
                 </span>
               </div>
 
               <h3 
                 onClick={() => handleOpenDoc(doc)}
-                className="text-base font-bold text-slate-900 group-hover:text-gmni-red transition-colors cursor-pointer leading-snug"
+                className="text-base font-bold text-ink-primary group-hover:text-primary transition-colors cursor-pointer leading-snug"
               >
                 {doc.title}
               </h3>
 
-              <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+              <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
                 {doc.subtitle}
               </p>
 
               {/* Document Overview Summary */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-700 line-clamp-3 leading-relaxed">
+              <div className="p-3 bg-stone-50 rounded-btn border border-border/80 text-xs text-ink-secondary line-clamp-3 leading-relaxed">
                 {doc.sections.latar_belakang}
               </div>
 
-              <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-slate-500 pt-1">
-                <span className="flex items-center gap-1 font-medium text-slate-700">
-                  <User className="w-3 h-3" />
-                  {doc.author}
+              <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-ink-tertiary pt-1">
+                <span className="font-medium text-ink-secondary">
+                  Penyusun: {doc.author}
                 </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Building2 className="w-3 h-3" />
-                  {doc.komisariat}
-                </span>
+                <span>·</span>
+                <span>{doc.komisariat}</span>
               </div>
             </div>
 
-            {/* Actions Bar */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+            {/* Actions */}
+            <div className="pt-3 border-t border-border flex items-center justify-between">
+              <span className="text-[11px] text-ink-tertiary">
+                Format: 10 Bab Akademik
+              </span>
+
               <button
                 onClick={() => handleOpenDoc(doc)}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors"
               >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Baca & Cetak Naskah</span>
+                <span>Buka & Cetak Naskah</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
-
-              <Link
-                href={`/isu/${doc.issue_id === 'issue-pwk-01' ? 'keamanan-pengawasan-kawasan-waduk-jatiluhur' : 'perlindungan-hak-buruh-outsourcing-kbi-purwakarta'}`}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors border border-slate-200"
-                title="Buka Lembar Fakta Isu"
-              >
-                Isu Terkait
-              </Link>
             </div>
 
           </div>
         ))}
       </div>
 
-      {/* Modal Kajian Preview */}
+      {/* Modal Preview */}
       {selectedDoc && (
         <KajianDocModal
           doc={selectedDoc}

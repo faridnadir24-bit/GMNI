@@ -2,22 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { 
-  Sparkles, 
-  MapPin, 
-  Activity, 
-  ShieldCheck, 
-  Clock, 
-  ArrowRight, 
-  Database,
-  Flame,
-  Bookmark,
-  BookmarkCheck
-} from 'lucide-react';
+import { ArrowRight, Bookmark, BookmarkCheck } from 'lucide-react';
 import { Issue } from '@/types';
-import { getStatusBadgeStyle, formatDateIndo } from '@/lib/utils';
+import { formatDateIndo } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
+import LocationBadge from '@/components/ui/LocationBadge';
+import CategoryBadge from '@/components/ui/CategoryBadge';
+import StatusBadge from '@/components/ui/StatusBadge';
+import ScoreIndicator from '@/components/ui/ScoreIndicator';
 
 interface PriorityBoardProps {
   issues: Issue[];
@@ -28,38 +20,30 @@ interface PriorityBoardProps {
 
 export default function PriorityBoard({
   issues,
-  title = "Isu yang Perlu Diperhatikan",
-  subtitle = "Peringkat isu berdasarkan kalkulasi Impact, Evidence, dan Momentum perhatian publik.",
+  title = "Isu Prioritas Pemantauan",
+  subtitle = "Peringkat isu berdasarkan skor dampak kebijakan dan ketersediaan bukti sumber data.",
   limit
 }: PriorityBoardProps) {
-  const router = useRouter();
   const { savedIssueIds, toggleSaveIssue } = useApp();
-
   const displayIssues = limit ? issues.slice(0, limit) : issues;
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight font-sans">
-              {title}
-            </h2>
-            <span className="text-xs font-semibold px-2 py-0.5 bg-red-50 text-gmni-red border border-red-200 rounded-full">
-              {issues.length} Prioritas
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className="text-base sm:text-lg font-bold text-ink-primary">
+            {title}
+          </h2>
+          <p className="text-xs text-ink-secondary mt-0.5">
             {subtitle}
           </p>
         </div>
 
         <Link
           href="/isu"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-gmni-red hover:text-red-700 transition-colors"
+          className="text-xs font-semibold text-primary hover:text-gmni-deep transition-colors inline-flex items-center gap-1 shrink-0"
         >
-          <span>Lihat Semua Isu</span>
+          <span>Buka Semua Isu</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
@@ -72,118 +56,84 @@ export default function PriorityBoard({
           return (
             <div
               key={issue.id}
-              className="bg-white rounded-xl border border-slate-200 shadow-subtle hover:shadow-card-hover hover:border-slate-300 transition-all flex flex-col justify-between overflow-hidden group relative"
+              className="bg-surface rounded-card border border-border p-5 shadow-subtle hover:border-stone-400 hover:shadow-card-hover transition-all flex flex-col justify-between space-y-4 group"
             >
-              {/* Top Accent Bar */}
-              <div className={`h-1 w-full ${isHighPriority ? 'bg-gmni-red' : 'bg-slate-300'}`} />
-
-              <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
-                
-                {/* Header Badge & Action */}
-                <div>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {isHighPriority && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-red-600 text-white uppercase tracking-wider">
-                          🔴 PRIORITAS TINGGI
-                        </span>
-                      )}
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getStatusBadgeStyle(issue.status)}`}>
-                        {issue.status}
+              <div className="space-y-3">
+                {/* Meta Top: Status & Priority */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={issue.status} />
+                    {isHighPriority && (
+                      <span className="text-[11px] font-semibold text-primary">
+                        Prioritas Tinggi
                       </span>
-                    </div>
-
-                    <button
-                      onClick={() => toggleSaveIssue(issue.id)}
-                      className="text-slate-400 hover:text-gmni-red transition-colors p-1"
-                      title={isSaved ? "Hapus dari pantauan tersimpan" : "Simpan ke daftar pantauan"}
-                    >
-                      {isSaved ? (
-                        <BookmarkCheck className="w-4 h-4 text-gmni-red fill-gmni-red" />
-                      ) : (
-                        <Bookmark className="w-4 h-4" />
-                      )}
-                    </button>
+                    )}
                   </div>
 
-                  {/* Title */}
-                  <Link href={`/isu/${issue.slug}`} className="block group-hover:text-gmni-red transition-colors">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-2 leading-snug">
-                      {issue.title}
-                    </h3>
-                  </Link>
-
-                  {/* Region & Category Meta */}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-[11px] text-slate-500">
-                    <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                      <MapPin className="w-3 h-3 text-red-500" />
-                      {issue.location} {issue.district ? `(${issue.district})` : ''}
-                    </span>
-                    <span>•</span>
-                    <span className="text-slate-600 truncate">{issue.category}</span>
-                  </div>
-
-                  {/* Short Description */}
-                  <p className="text-xs text-slate-600 mt-2.5 line-clamp-2 leading-relaxed">
-                    {issue.description}
-                  </p>
+                  <button
+                    onClick={() => toggleSaveIssue(issue.id)}
+                    className="text-ink-tertiary hover:text-primary transition-colors p-1"
+                    title={isSaved ? "Hapus dari pantauan tersimpan" : "Simpan ke daftar pantauan"}
+                  >
+                    {isSaved ? (
+                      <BookmarkCheck className="w-4 h-4 text-primary fill-primary" />
+                    ) : (
+                      <Bookmark className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
 
-                {/* Score Indicators Matrix */}
-                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 space-y-2">
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-white p-1.5 rounded border border-slate-200/80 shadow-2xs">
-                      <div className="text-[10px] text-slate-500 font-medium">Impact</div>
-                      <div className="text-xs font-bold text-red-700 font-mono">
-                        {issue.impact_score}<span className="text-[9px] font-normal text-slate-400">/100</span>
-                      </div>
-                    </div>
-                    <div className="bg-white p-1.5 rounded border border-slate-200/80 shadow-2xs">
-                      <div className="text-[10px] text-slate-500 font-medium">Evidence</div>
-                      <div className="text-xs font-bold text-slate-800 font-mono">
-                        {issue.evidence_score}<span className="text-[9px] font-normal text-slate-400">/100</span>
-                      </div>
-                    </div>
-                    <div className="bg-white p-1.5 rounded border border-slate-200/80 shadow-2xs">
-                      <div className="text-[10px] text-slate-500 font-medium">Momentum</div>
-                      <div className="text-xs font-bold text-amber-700 font-mono">
-                        {issue.momentum_score}<span className="text-[9px] font-normal text-slate-400">/100</span>
-                      </div>
-                    </div>
-                  </div>
+                {/* Title */}
+                <Link href={`/isu/${issue.slug}`} className="block group-hover:text-primary transition-colors">
+                  <h3 className="text-sm sm:text-base font-bold text-ink-primary leading-snug">
+                    {issue.title}
+                  </h3>
+                </Link>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
-                    <span className="inline-flex items-center gap-1">
-                      <Database className="w-3 h-3 text-slate-400" />
-                      {issue.sources_count} Sumber Data
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-slate-400">
-                      <Clock className="w-3 h-3" />
-                      Update: {formatDateIndo(issue.last_updated_at)}
-                    </span>
-                  </div>
+                {/* Location & Category Badges */}
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <LocationBadge location={issue.location} district={issue.district} size="sm" />
+                  <CategoryBadge category={issue.category} />
+                </div>
+
+                {/* Summary */}
+                <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
+                  {issue.description}
+                </p>
+              </div>
+
+              {/* Score Indicators Matrix */}
+              <div className="space-y-3 pt-3 border-t border-border/80">
+                <div className="space-y-2 bg-stone-50/60 p-3 rounded-btn border border-border/60">
+                  <ScoreIndicator label="Impact Score" score={issue.impact_score} accent={issue.impact_score >= 85} />
+                  <ScoreIndicator label="Evidence Score" score={issue.evidence_score} />
+                  <ScoreIndicator label="Momentum" score={issue.momentum_score} />
+                </div>
+
+                {/* Footnote meta */}
+                <div className="flex items-center justify-between text-[11px] text-ink-tertiary">
+                  <span>{issue.sources_count} sumber</span>
+                  <span>Diperbarui {formatDateIndo(issue.last_updated_at)}</span>
                 </div>
 
                 {/* Card Action Buttons */}
-                <div className="pt-1 flex items-center gap-2">
+                <div className="flex items-center gap-2 pt-1">
                   <Link
                     href={`/ai-analyst?issue=${issue.id}`}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs"
+                    className="flex-1 text-center py-2 px-3 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Analisis Isu</span>
+                    Analisis
                   </Link>
 
                   <Link
                     href={`/isu/${issue.slug}`}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200"
-                    title="Buka Lembar Fakta & Detail"
+                    className="py-2 px-3 bg-surface hover:bg-muted text-ink-primary text-xs font-medium rounded-btn border border-border transition-colors"
                   >
                     Detail
                   </Link>
                 </div>
-
               </div>
+
             </div>
           );
         })}

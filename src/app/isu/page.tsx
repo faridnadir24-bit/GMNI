@@ -4,26 +4,26 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   Search, 
-  Filter, 
-  MapPin, 
   Plus, 
   X, 
-  SlidersHorizontal, 
   BookOpen, 
-  ArrowRight,
-  Database,
-  Clock,
-  Sparkles
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { Issue, IssueStatus, PriorityLevel } from '@/types';
-import { getStatusBadgeStyle, formatDateIndo } from '@/lib/utils';
+import { Issue, IssueStatus } from '@/types';
+import { formatDateIndo } from '@/lib/utils';
+import TerritorySelector, { TerritoryScope } from '@/components/ui/TerritorySelector';
+import LocationBadge from '@/components/ui/LocationBadge';
+import CategoryBadge from '@/components/ui/CategoryBadge';
+import StatusBadge from '@/components/ui/StatusBadge';
+import ScoreIndicator from '@/components/ui/ScoreIndicator';
 
 export default function IssueDirectoryPage() {
   const { issues, addIssue, role } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState<string>('all');
+  const [selectedTerritory, setSelectedTerritory] = useState<TerritoryScope>('purwakarta');
+  const [selectedSubTerritory, setSelectedSubTerritory] = useState<string>('Semua Kecamatan');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'impact' | 'urgency' | 'momentum' | 'latest'>('impact');
@@ -34,15 +34,23 @@ export default function IssueDirectoryPage() {
   const [newDescription, setNewDescription] = useState('');
   const [newLocation, setNewLocation] = useState('Purwakarta');
   const [newDistrict, setNewDistrict] = useState('Kec. Purwakarta');
-  const [newCategory, setNewCategory] = useState('Keamanan Publik');
+  const [newCategory, setNewCategory] = useState('Keamanan');
   const [newStatus, setNewStatus] = useState<IssueStatus>('Developing');
   const [newImpact, setNewImpact] = useState(85);
 
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    issues.forEach(i => set.add(i.category));
-    return Array.from(set);
-  }, [issues]);
+  const categories = [
+    'Sosial',
+    'Politik',
+    'Ekonomi',
+    'Hukum',
+    'Pendidikan',
+    'Kesehatan',
+    'Lingkungan',
+    'Ketenagakerjaan',
+    'Agraria',
+    'Keamanan',
+    'Pemerintahan'
+  ];
 
   const filteredIssues = useMemo(() => {
     return issues.filter(issue => {
@@ -57,16 +65,17 @@ export default function IssueDirectoryPage() {
         if (!matches) return false;
       }
 
-      // Region
-      if (selectedRegion !== 'all') {
-        if (selectedRegion === 'purwakarta' && !issue.location.toLowerCase().includes('purwakarta')) return false;
-        if (selectedRegion === 'jabar' && !issue.province.toLowerCase().includes('jawa barat')) return false;
-        if (selectedRegion === 'nasional' && !issue.location.toLowerCase().includes('nasional')) return false;
-      }
-
-      // Category
-      if (selectedCategory !== 'all' && issue.category !== selectedCategory) {
-        return false;
+      // Territory
+      if (selectedTerritory === 'purwakarta') {
+        const match = issue.location.toLowerCase().includes('purwakarta');
+        if (!match) return false;
+        if (selectedSubTerritory && selectedSubTerritory !== 'Semua Kecamatan') {
+          return issue.district?.toLowerCase().includes(selectedSubTerritory.toLowerCase());
+        }
+      } else if (selectedTerritory === 'jabar') {
+        if (!issue.province.toLowerCase().includes('jawa barat')) return false;
+      } else if (selectedTerritory === 'nasional') {
+        if (!issue.location.toLowerCase().includes('nasional')) return false;
       }
 
       // Status
@@ -82,7 +91,7 @@ export default function IssueDirectoryPage() {
       if (sortBy === 'latest') return new Date(b.last_updated_at).getTime() - new Date(a.last_updated_at).getTime();
       return 0;
     });
-  }, [issues, searchQuery, selectedRegion, selectedCategory, selectedStatus, sortBy]);
+  }, [issues, searchQuery, selectedTerritory, selectedSubTerritory, selectedCategory, selectedStatus, sortBy]);
 
   const handleCreateIssue = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,234 +163,181 @@ export default function IssueDirectoryPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
-      {/* Directory Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+      {/* Top Header */}
+      <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 border-b border-border pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-gmni-red" />
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans">
-              Direktori Isu Sosial-Politik
-            </h1>
-            <span className="text-xs font-semibold px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
-              {filteredIssues.length} Isu Ditemukan
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Repositori pemantauan isu terstruktur dari skala lokal Purwakarta, Jawa Barat, hingga Nasional.
+          <h1 className="text-xl sm:text-2xl font-bold text-ink-primary">
+            Direktori Isu Sosial-Politik
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
+            Pencarian dan penapisan isu terstruktur berdasar wilayah, sektor bidang, dan status perkembangan.
           </p>
         </div>
 
         {(role === 'admin' || role === 'researcher') && (
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gmni-red hover:bg-red-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors shrink-0"
           >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Isu Baru</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Daftarkan Isu Baru</span>
           </button>
         )}
       </div>
 
-      {/* Filter and Search Toolbar */}
-      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-subtle space-y-4">
-        
-        {/* Search bar */}
+      {/* Territory Selector Navigation */}
+      <TerritorySelector
+        selectedScope={selectedTerritory}
+        onSelectScope={setSelectedTerritory}
+        selectedSubScope={selectedSubTerritory}
+        onSelectSubScope={setSelectedSubTerritory}
+      />
+
+      {/* Search & Filters Toolbar */}
+      <div className="bg-surface p-4 rounded-card border border-border space-y-3 shadow-subtle">
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-ink-tertiary absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Cari isu berdasarkan judul, kategori, wilayah, atau kata kunci ringkasan..."
-            className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+            placeholder="Cari kata kunci judul, deskripsi, atau wilayah..."
+            className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-muted/60 border border-border rounded-btn placeholder:text-ink-tertiary focus:outline-none focus:bg-surface focus:border-stone-400"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary hover:text-ink-primary"
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Filter Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
-          
-          {/* Region Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400 mr-1 uppercase">Wilayah:</span>
-            {[
-              { id: 'all', label: 'Semua Wilayah' },
-              { id: 'purwakarta', label: '🔴 Purwakarta (Prioritas 1)' },
-              { id: 'jabar', label: 'Jawa Barat' },
-              { id: 'nasional', label: 'Nasional' }
-            ].map(r => (
-              <button
-                key={r.id}
-                onClick={() => setSelectedRegion(r.id)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                  selectedRegion === r.id
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-ink-tertiary uppercase">Status:</span>
+            <select
+              value={selectedStatus}
+              onChange={e => setSelectedStatus(e.target.value)}
+              className="p-1.5 bg-surface border border-border rounded-btn text-xs font-medium text-ink-primary"
+            >
+              <option value="all">Semua Status</option>
+              <option value="Emerging">Emerging</option>
+              <option value="Monitoring">Monitoring</option>
+              <option value="Developing">Developing</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Archived">Archived</option>
+            </select>
           </div>
 
-          {/* Sorter & Status Selectors */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-400">Status:</span>
-              <select
-                value={selectedStatus}
-                onChange={e => setSelectedStatus(e.target.value)}
-                className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700"
-              >
-                <option value="all">Semua Status</option>
-                <option value="Emerging">Emerging</option>
-                <option value="Monitoring">Monitoring</option>
-                <option value="Developing">Developing</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Archived">Archived</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-400">Urutkan:</span>
-              <select
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value as any)}
-                className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700"
-              >
-                <option value="impact">Tertinggi Impact</option>
-                <option value="urgency">Tertinggi Urgensi</option>
-                <option value="momentum">Tertinggi Momentum</option>
-                <option value="latest">Paling Baru Update</option>
-              </select>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-ink-tertiary uppercase">Urutkan:</span>
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+              className="p-1.5 bg-surface border border-border rounded-btn text-xs font-medium text-ink-primary"
+            >
+              <option value="impact">Impact Tertinggi</option>
+              <option value="urgency">Urgensi Tertinggi</option>
+              <option value="momentum">Momentum Tertinggi</option>
+              <option value="latest">Paling Baru Update</option>
+            </select>
           </div>
-
         </div>
-
       </div>
 
-      {/* Issue Cards Grid */}
+      {/* Issues Grid */}
       <div className="space-y-4">
         {filteredIssues.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 space-y-3">
-            <BookOpen className="w-8 h-8 text-slate-400 mx-auto" />
-            <h3 className="text-sm font-bold text-slate-800">
-              Belum ada isu yang cocok dengan filter pencarian.
+          <div className="text-center py-16 bg-surface rounded-card border border-border space-y-2">
+            <BookOpen className="w-6 h-6 text-ink-tertiary mx-auto" />
+            <h3 className="text-xs sm:text-sm font-semibold text-ink-primary">
+              Tidak ada isu yang cocok dengan penapisan.
             </h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Coba sesuaikan kata kunci pencarian atau ubah filter wilayah dan status.
+            <p className="text-xs text-ink-secondary">
+              Sesuaikan kata kunci pencarian atau ganti pilihan wilayah.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredIssues.map(issue => {
-              const isHigh = issue.priority_level === 'Tinggi' || issue.impact_score >= 85;
-              return (
-                <div
-                  key={issue.id}
-                  className="bg-white rounded-xl border border-slate-200 shadow-subtle hover:shadow-card-hover hover:border-slate-300 transition-all flex flex-col justify-between overflow-hidden group"
-                >
-                  <div className={`h-1 w-full ${isHigh ? 'bg-gmni-red' : 'bg-slate-300'}`} />
+            {filteredIssues.map(issue => (
+              <div
+                key={issue.id}
+                className="bg-surface rounded-card border border-border p-5 shadow-subtle hover:border-stone-400 hover:shadow-card-hover transition-all flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <StatusBadge status={issue.status} />
+                    <span className="text-[11px] text-ink-tertiary font-mono">
+                      {formatDateIndo(issue.last_updated_at)}
+                    </span>
+                  </div>
 
-                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getStatusBadgeStyle(issue.status)}`}>
-                          {issue.status}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {formatDateIndo(issue.last_updated_at)}
-                        </span>
-                      </div>
+                  <Link href={`/isu/${issue.slug}`} className="block hover:text-primary transition-colors">
+                    <h3 className="text-sm sm:text-base font-bold text-ink-primary leading-snug">
+                      {issue.title}
+                    </h3>
+                  </Link>
 
-                      <Link href={`/isu/${issue.slug}`} className="block group-hover:text-gmni-red transition-colors">
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-2 leading-snug">
-                          {issue.title}
-                        </h3>
-                      </Link>
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                    <LocationBadge location={issue.location} district={issue.district} size="sm" />
+                    <CategoryBadge category={issue.category} />
+                  </div>
 
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-[11px] text-slate-500">
-                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                          <MapPin className="w-3 h-3 text-red-500" />
-                          {issue.location} {issue.district ? `(${issue.district})` : ''}
-                        </span>
-                        <span>•</span>
-                        <span className="text-slate-600 truncate">{issue.category}</span>
-                      </div>
+                  <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
+                    {issue.description}
+                  </p>
+                </div>
 
-                      <p className="text-xs text-slate-600 mt-2.5 line-clamp-2 leading-relaxed">
-                        {issue.description}
-                      </p>
-                    </div>
+                <div className="space-y-3 pt-3 border-t border-border/80">
+                  <div className="space-y-2 bg-stone-50/60 p-3 rounded-btn border border-border/60">
+                    <ScoreIndicator label="Impact Score" score={issue.impact_score} accent={issue.impact_score >= 85} />
+                    <ScoreIndicator label="Evidence Score" score={issue.evidence_score} />
+                    <ScoreIndicator label="Momentum" score={issue.momentum_score} />
+                  </div>
 
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 space-y-2">
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-white p-1.5 rounded border border-slate-200">
-                          <div className="text-[9px] text-slate-500">Impact</div>
-                          <div className="font-bold text-red-700 font-mono">{issue.impact_score}/100</div>
-                        </div>
-                        <div className="bg-white p-1.5 rounded border border-slate-200">
-                          <div className="text-[9px] text-slate-500">Evidence</div>
-                          <div className="font-bold text-slate-800 font-mono">{issue.evidence_score}/100</div>
-                        </div>
-                        <div className="bg-white p-1.5 rounded border border-slate-200">
-                          <div className="text-[9px] text-slate-500">Momentum</div>
-                          <div className="font-bold text-amber-700 font-mono">{issue.momentum_score}/100</div>
-                        </div>
-                      </div>
+                  <div className="flex items-center justify-between text-[11px] text-ink-tertiary">
+                    <span>{issue.sources_count} sumber</span>
+                    <span className="text-ink-secondary font-medium">
+                      Rekomendasi: {issue.research_recommendation.verdict}
+                    </span>
+                  </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
-                        <span>{issue.sources_count} Sumber Data</span>
-                        <span className="text-emerald-700 font-medium font-mono">
-                          {issue.research_recommendation.verdict}
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Link
+                      href={`/ai-analyst?issue=${issue.id}`}
+                      className="flex-1 text-center py-2 px-3 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors"
+                    >
+                      Analisis
+                    </Link>
 
-                    <div className="pt-1 flex items-center gap-2">
-                      <Link
-                        href={`/ai-analyst?issue=${issue.id}`}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                        <span>Analisis AI</span>
-                      </Link>
-
-                      <Link
-                        href={`/isu/${issue.slug}`}
-                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors border border-slate-200"
-                      >
-                        Detail
-                      </Link>
-                    </div>
-
+                    <Link
+                      href={`/isu/${issue.slug}`}
+                      className="py-2 px-3 bg-surface hover:bg-muted text-ink-primary text-xs font-medium rounded-btn border border-border transition-colors"
+                    >
+                      Detail
+                    </Link>
                   </div>
                 </div>
-              );
-            })}
+
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Add Issue Modal */}
+      {/* Modal Add Issue */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h4 className="text-sm font-bold text-slate-900">
-                Tambah Isu Baru ke Radar Pemantauan
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-primary/40 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-surface rounded-card p-6 shadow-card border border-border space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h4 className="text-sm font-bold text-ink-primary">
+                Daftarkan Isu Baru ke Pemantauan
               </h4>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-ink-tertiary hover:text-ink-primary"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -389,7 +345,7 @@ export default function IssueDirectoryPage() {
 
             <form onSubmit={handleCreateIssue} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
+                <label className="block font-medium text-ink-secondary mb-1">
                   Judul Isu:
                 </label>
                 <input
@@ -397,82 +353,79 @@ export default function IssueDirectoryPage() {
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
                   placeholder="Misal: Penataan Kawasan Industri dan Keselamatan Kerja..."
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-xs"
+                  className="w-full p-2.5 bg-surface border border-border rounded-btn text-xs focus:outline-none focus:border-stone-400"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Deskripsi / Konteks Permasalahan:
+                <label className="block font-medium text-ink-secondary mb-1">
+                  Ringkasan Persoalan:
                 </label>
                 <textarea
                   value={newDescription}
                   onChange={e => setNewDescription(e.target.value)}
                   placeholder="Jelaskan ringkasan persoalan di lapangan..."
                   rows={3}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-xs"
+                  className="w-full p-2.5 bg-surface border border-border rounded-btn text-xs focus:outline-none focus:border-stone-400"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Wilayah / Lokus:
+                  <label className="block font-medium text-ink-secondary mb-1">
+                    Wilayah:
                   </label>
                   <select
                     value={newLocation}
                     onChange={e => setNewLocation(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                    className="w-full p-2 bg-surface border border-border rounded-btn text-xs"
                   >
-                    <option value="Purwakarta">🔴 Purwakarta</option>
+                    <option value="Purwakarta">Purwakarta</option>
                     <option value="Jawa Barat">Jawa Barat</option>
                     <option value="Nasional">Nasional</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Kecamatan (Jika Purwakarta):
+                  <label className="block font-medium text-ink-secondary mb-1">
+                    Kecamatan / Lokus:
                   </label>
                   <input
                     type="text"
                     value={newDistrict}
                     onChange={e => setNewDistrict(e.target.value)}
                     placeholder="Misal: Kec. Jatiluhur"
-                    className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                    className="w-full p-2 bg-surface border border-border rounded-btn text-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Kategori Bidang:
+                  <label className="block font-medium text-ink-secondary mb-1">
+                    Kategori:
                   </label>
                   <select
                     value={newCategory}
                     onChange={e => setNewCategory(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                    className="w-full p-2 bg-surface border border-border rounded-btn text-xs"
                   >
-                    <option value="Keamanan Publik">Keamanan Publik</option>
-                    <option value="Ketenagakerjaan">Ketenagakerjaan</option>
-                    <option value="Agraria & Lingkungan">Agraria & Lingkungan</option>
-                    <option value="Pendidikan & Pemuda">Pendidikan & Pemuda</option>
-                    <option value="Kebijakan Daerah">Kebijakan Daerah</option>
-                    <option value="Hukum & HAM">Hukum & HAM</option>
+                    {categories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
+                  <label className="block font-medium text-ink-secondary mb-1">
                     Status Awal:
                   </label>
                   <select
                     value={newStatus}
                     onChange={e => setNewStatus(e.target.value as IssueStatus)}
-                    className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                    className="w-full p-2 bg-surface border border-border rounded-btn text-xs"
                   >
                     <option value="Emerging">Emerging</option>
                     <option value="Monitoring">Monitoring</option>
@@ -483,8 +436,8 @@ export default function IssueDirectoryPage() {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Estimasi Skor Dampak / Impact ({newImpact}/100):
+                <label className="block font-medium text-ink-secondary mb-1">
+                  Estimasi Dampak / Impact ({newImpact}/100):
                 </label>
                 <input
                   type="range"
@@ -492,23 +445,23 @@ export default function IssueDirectoryPage() {
                   max={100}
                   value={newImpact}
                   onChange={e => setNewImpact(Number(e.target.value))}
-                  className="w-full accent-red-600"
+                  className="w-full accent-stone-700"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t">
+              <div className="pt-3 flex justify-end gap-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium"
+                  className="px-3 py-2 bg-muted hover:bg-stone-200 text-ink-primary rounded-btn font-medium"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gmni-red hover:bg-red-700 text-white rounded-lg font-semibold shadow-xs"
+                  className="px-4 py-2 bg-ink-primary hover:bg-black text-white rounded-btn font-semibold"
                 >
-                  Daftarkan Isu
+                  Simpan Isu
                 </button>
               </div>
             </form>

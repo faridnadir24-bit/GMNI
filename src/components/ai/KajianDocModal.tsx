@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { X, Printer, Download, Copy, Check, FileText, Share2, ShieldCheck, Sparkles } from 'lucide-react';
+import { X, Printer, Download, Copy, Check } from 'lucide-react';
 import { BahanKajianDocument } from '@/types';
 
 interface KajianDocModalProps {
@@ -63,7 +63,7 @@ ${doc.sections.rekomendasi_advokasi.map((rec, i) => `${i + 1}. ${rec}`).join('\n
 ${doc.sections.daftar_pustaka.map((p, i) => `- *${p.title}*, ${p.source} (${p.year})`).join('\n')}
 
 ---
-*Diterbitkan oleh Sistem Intelligence RUANG ISU GMNI Wastukancana Purwakarta*
+*Diterbitkan oleh RUANG ISU GMNI Wastukancana Purwakarta*
     `.trim();
 
     navigator.clipboard.writeText(mdContent);
@@ -124,16 +124,16 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-primary/50 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]"
+        className="w-full max-w-4xl bg-surface rounded-card shadow-card border border-border overflow-hidden flex flex-col max-h-[92vh]"
         onClick={e => e.stopPropagation()}
       >
         
         {/* Top Control Bar */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="px-6 py-4 bg-ink-primary text-white flex items-center justify-between border-b border-stone-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="relative w-8 h-9 shrink-0">
+            <div className="relative w-7 h-9 shrink-0">
               <Image
                 src="/assets/gmni/logo-gmni.png"
                 alt="Logo GMNI"
@@ -146,11 +146,11 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
                 <span className="font-bold text-sm tracking-tight">
                   DOKUMEN BAHAN KAJIAN
                 </span>
-                <span className="text-[10px] bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded font-mono">
+                <span className="text-[10px] bg-stone-800 text-stone-200 border border-stone-700 px-2 py-0.5 rounded font-mono">
                   {doc.status}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-stone-400">
                 GMNI Komisariat Wastukancana Purwakarta
               </p>
             </div>
@@ -159,7 +159,7 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopyMarkdown}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors border border-slate-700"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-btn transition-colors border border-stone-700"
               title="Salin Naskah Markdown"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -168,7 +168,7 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
 
             <button
               onClick={handleDownloadMarkdown}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors border border-slate-700"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-btn transition-colors border border-stone-700"
               title="Unduh Berkas .md"
             >
               <Download className="w-3.5 h-3.5" />
@@ -177,7 +177,7 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
 
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary hover:bg-gmni-deep text-white rounded-btn transition-colors shadow-xs"
               title="Cetak Dokumen"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -186,20 +186,20 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors ml-1"
+              className="p-1.5 text-stone-400 hover:text-white rounded-btn hover:bg-stone-800 transition-colors ml-1"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Scrollable Printable Document Body */}
-        <div className="p-6 sm:p-10 overflow-y-auto space-y-8 text-slate-900 font-sans print:p-0 print:space-y-6">
+        <div className="p-6 sm:p-10 overflow-y-auto space-y-8 text-ink-primary font-sans print:p-0 print:space-y-6">
           
           {/* Official Document Header */}
-          <div className="border-b-2 border-slate-900 pb-6 text-center space-y-2">
+          <div className="border-b-2 border-ink-primary pb-6 text-center space-y-2">
             <div className="flex justify-center mb-2">
-              <div className="relative w-16 h-18">
+              <div className="relative w-14 h-16">
                 <Image
                   src="/assets/gmni/logo-gmni.png"
                   alt="Logo GMNI"
@@ -208,104 +208,95 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
                 />
               </div>
             </div>
-            <div className="text-xs font-bold tracking-widest text-slate-700 uppercase">
+            <div className="text-xs font-bold tracking-widest text-ink-secondary uppercase">
               DEWAN PENGURUS KOMISARIAT
             </div>
-            <div className="text-sm sm:text-base font-extrabold text-slate-900 tracking-wider uppercase">
+            <div className="text-sm sm:text-base font-extrabold text-ink-primary tracking-wider uppercase">
               GERAKAN MAHASISWA NASIONAL INDONESIA (GMNI)
             </div>
-            <div className="text-xs font-semibold text-gmni-red uppercase">
+            <div className="text-xs font-semibold text-primary uppercase">
               KOMISARIAT WASTUKANCANA – PURWAKARTA
             </div>
-            <div className="text-[11px] text-slate-500 font-mono italic">
+            <div className="text-[11px] text-ink-tertiary font-mono italic">
               "Pejuang Pemikir – Pemikir Pejuang"
             </div>
           </div>
 
           {/* Title & Metadata */}
           <div className="space-y-2 text-center pt-2">
-            <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">
+            <h1 className="text-lg sm:text-xl font-extrabold text-ink-primary leading-tight">
               {doc.title}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-600 font-medium italic max-w-2xl mx-auto">
+            <p className="text-xs sm:text-sm text-ink-secondary font-medium italic max-w-2xl mx-auto">
               {doc.subtitle}
             </p>
-            <div className="flex flex-wrap justify-center items-center gap-3 pt-2 text-xs text-slate-500 font-mono">
+            <div className="flex flex-wrap justify-center items-center gap-3 pt-2 text-xs text-ink-tertiary font-mono">
               <span>Penyusun: <strong>{doc.author}</strong></span>
-              <span>•</span>
+              <span>·</span>
               <span>Tanggal: <strong>{doc.date_created}</strong></span>
-              <span>•</span>
-              <span className="text-gmni-red font-bold">STATUS: {doc.status}</span>
+              <span>·</span>
+              <span className="text-primary font-bold">STATUS: {doc.status}</span>
             </div>
           </div>
 
-          <hr className="border-slate-200" />
+          <hr className="border-border" />
 
           {/* Section 1: Latar Belakang */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
               I. Latar Belakang Masalah
             </h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
+            <p className="text-xs sm:text-sm text-ink-secondary leading-relaxed text-justify">
               {doc.sections.latar_belakang}
             </p>
           </div>
 
           {/* Section 2: Rumusan Masalah */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
-              II. Rumusan Masalah & Pertanyaan Kunci
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              II. Rumusan Masalah
             </h3>
-            <ol className="list-decimal pl-5 space-y-1.5 text-xs sm:text-sm text-slate-700">
-              {doc.sections.rumusan_masalah.map((r, i) => (
-                <li key={i} className="leading-relaxed">{r}</li>
+            <ol className="list-decimal pl-5 space-y-1 text-xs sm:text-sm text-ink-secondary">
+              {doc.sections.rumusan_masalah.map((r, idx) => (
+                <li key={idx} className="leading-relaxed">{r}</li>
               ))}
             </ol>
           </div>
 
-          {/* Section 3: Data dan Fakta Terkonfirmasi */}
+          {/* Section 3: Data & Fakta */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              III. Data & Fakta Terkonfirmasi
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              III. Data & Fakta Terverifikasi
             </h3>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-              {doc.sections.data_dan_fakta.map((d, i) => (
-                <div key={i} className="text-xs sm:text-sm text-slate-700 flex items-start gap-2">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  <span>{d}</span>
-                </div>
+            <ul className="list-disc pl-5 space-y-1 text-xs sm:text-sm text-ink-secondary">
+              {doc.sections.data_dan_fakta.map((d, idx) => (
+                <li key={idx} className="leading-relaxed">{d}</li>
               ))}
-            </div>
+            </ul>
           </div>
 
           {/* Section 4: Kronologi */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
-              IV. Kronologi Peristiwa
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              IV. Kronologi Singkat
             </h3>
-            <ul className="list-disc pl-5 space-y-1.5 text-xs sm:text-sm text-slate-700">
-              {doc.sections.kronologi_singkat.map((k, i) => (
-                <li key={i} className="leading-relaxed">{k}</li>
+            <ul className="list-disc pl-5 space-y-1 text-xs sm:text-sm text-ink-secondary">
+              {doc.sections.kronologi_singkat.map((k, idx) => (
+                <li key={idx} className="leading-relaxed">{k}</li>
               ))}
             </ul>
           </div>
 
           {/* Section 5: Pihak Terkait */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
-              V. Pemetaan Pihak Terkait (Stakeholders)
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              V. Pemetaan Pihak Terkait
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              {doc.sections.pihak_terkait.map((p, i) => (
-                <div key={i} className="p-3 bg-white border border-slate-200 rounded-lg">
-                  <div className="font-bold text-slate-900">{p.nama}</div>
-                  <div className="text-slate-500 text-[11px]">Peran: {p.peran}</div>
-                  <div className="text-gmni-red text-[11px] font-medium mt-0.5">Sikap: {p.posisi}</div>
+              {doc.sections.pihak_terkait.map((p, idx) => (
+                <div key={idx} className="p-2.5 bg-stone-50 border border-border rounded-btn">
+                  <div className="font-bold text-ink-primary">{p.nama}</div>
+                  <div className="text-ink-secondary text-[11px]">{p.peran} · Posisi: {p.posisi}</div>
                 </div>
               ))}
             </div>
@@ -313,96 +304,70 @@ ${doc.sections.daftar_pustaka.map((p, i) => `- ${p.title}, ${p.source} (${p.year
 
           {/* Section 6: Analisis Sosial Politik */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
               VI. Analisis Sosial Politik
             </h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
+            <p className="text-xs sm:text-sm text-ink-secondary leading-relaxed text-justify">
               {doc.sections.analisis_sosial_politik}
             </p>
           </div>
 
-          {/* Section 7: Perspektif Marhaenisme GMNI */}
+          {/* Section 7: Perspektif Marhaenisme */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gmni-red flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
               VII. Pisau Analisis Perspektif Marhaenisme GMNI
             </h3>
-            <div className="p-4 bg-red-50/70 border border-red-200 rounded-xl text-xs sm:text-sm text-slate-800 leading-relaxed space-y-2">
-              <p>{doc.sections.perspektif_marhaenisme}</p>
-              <div className="pt-2 border-t border-red-200 text-xs text-slate-700">
-                <strong>Dampak terhadap Kaum Marhaen:</strong> {doc.sections.dampak_masyarakat}
-              </div>
-            </div>
+            <p className="text-xs sm:text-sm text-ink-secondary leading-relaxed text-justify">
+              {doc.sections.perspektif_marhaenisme}
+            </p>
           </div>
 
-          {/* Section 8: Alternatif Kebijakan */}
+          {/* Section 8: Dampak Masyarakat */}
           <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
-              VIII. Alternatif Kebijakan Publik yang Ditawarkan
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              VIII. Dampak terhadap Kaum Marhaen
             </h3>
-            <ul className="space-y-2 text-xs sm:text-sm text-slate-700">
-              {doc.sections.alternatif_kebijakan.map((alt, i) => (
-                <li key={i} className="flex items-start gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                  <span className="w-5 h-5 rounded-full bg-slate-900 text-white font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                    {i + 1}
-                  </span>
-                  <span>{alt}</span>
+            <p className="text-xs sm:text-sm text-ink-secondary leading-relaxed text-justify">
+              {doc.sections.dampak_masyarakat}
+            </p>
+          </div>
+
+          {/* Section 9: Alternatif Kebijakan */}
+          <div className="space-y-2">
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              IX. Alternatif Kebijakan Publik
+            </h3>
+            <ol className="list-decimal pl-5 space-y-1.5 text-xs sm:text-sm text-ink-secondary">
+              {doc.sections.alternatif_kebijakan.map((alt, idx) => (
+                <li key={idx} className="leading-relaxed">{alt}</li>
+              ))}
+            </ol>
+          </div>
+
+          {/* Section 10: Rekomendasi Advokasi */}
+          <div className="space-y-2">
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              X. Rekomendasi Taktis & Advokasi
+            </h3>
+            <ol className="list-decimal pl-5 space-y-1.5 text-xs sm:text-sm text-ink-secondary">
+              {doc.sections.rekomendasi_advokasi.map((rec, idx) => (
+                <li key={idx} className="leading-relaxed">{rec}</li>
+              ))}
+            </ol>
+          </div>
+
+          {/* Section 11: Daftar Pustaka */}
+          <div className="space-y-2 pt-4 border-t border-border">
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-ink-primary">
+              XI. Daftar Referensi
+            </h3>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-ink-secondary font-mono">
+              {doc.sections.daftar_pustaka.map((p, idx) => (
+                <li key={idx}>
+                  <em>{p.title}</em>, {p.source} ({p.year})
                 </li>
               ))}
             </ul>
-          </div>
-
-          {/* Section 9: Rekomendasi Advokasi */}
-          <div className="space-y-2">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gmni-red" />
-              IX. Rekomendasi Langkah Taktis & Advokasi GMNI
-            </h3>
-            <ul className="list-disc pl-5 space-y-1.5 text-xs sm:text-sm text-slate-700">
-              {doc.sections.rekomendasi_advokasi.map((rec, i) => (
-                <li key={i} className="leading-relaxed font-semibold text-slate-800">{rec}</li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Section 10: Daftar Referensi */}
-          <div className="space-y-2 pt-4 border-t border-slate-200">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              X. Daftar Pustaka & Rujukan Sumber Data
-            </h3>
-            <ul className="space-y-1 text-xs text-slate-600 font-mono">
-              {doc.sections.daftar_pustaka.map((p, i) => (
-                <li key={i}>
-                  [{i + 1}] {p.title} — <em>{p.source}</em> ({p.year})
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Document Signatures Footer */}
-          <div className="pt-8 border-t-2 border-slate-900 grid grid-cols-2 text-center text-xs gap-4 print:pt-6">
-            <div>
-              <p className="text-slate-500">Mengetahui,</p>
-              <p className="font-bold text-slate-900 mt-0.5">Pengurus DPK GMNI Wastukancana</p>
-              <div className="h-16 flex items-center justify-center">
-                <span className="text-[10px] font-mono text-slate-400 border border-dashed px-3 py-1 rounded">
-                  [STAMPEL RESMI KOMISARIAT]
-                </span>
-              </div>
-              <p className="font-bold text-slate-800 underline">Ketua Komisariat</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Penyusun Naskah,</p>
-              <p className="font-bold text-slate-900 mt-0.5">Bidang Sosial Politik</p>
-              <div className="h-16 flex items-center justify-center">
-                <span className="text-[10px] font-mono text-slate-400 border border-dashed px-3 py-1 rounded">
-                  [TANDA TANGAN ELEKTRONIK]
-                </span>
-              </div>
-              <p className="font-bold text-slate-800 underline">Kabid Sosial Politik</p>
-            </div>
           </div>
 
         </div>

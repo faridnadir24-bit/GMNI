@@ -4,22 +4,15 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
   Radio, 
-  ShieldAlert, 
-  TrendingUp, 
   Search, 
-  Filter, 
-  MessageSquare, 
-  Share2, 
-  Heart, 
   AlertTriangle,
   ExternalLink,
-  Flame,
-  Hash,
-  Sparkles,
+  MessageSquare,
+  Share2,
+  Heart,
   Info
 } from 'lucide-react';
 import { mockSignals } from '@/data/mockSignals';
-import { Signal } from '@/types';
 
 export default function PantauanMedsosPage() {
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
@@ -27,11 +20,11 @@ export default function PantauanMedsosPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const platforms = [
-    { name: 'Instagram', growth: '+32%', count: '14.2K Sinyal', color: 'text-pink-600 bg-pink-50 border-pink-200' },
-    { name: 'TikTok', growth: '+51%', count: '28.6K Sinyal', color: 'text-slate-900 bg-slate-100 border-slate-300' },
-    { name: 'X / Twitter', growth: '+18%', count: '9.4K Sinyal', color: 'text-blue-600 bg-blue-50 border-blue-200' },
-    { name: 'YouTube', growth: '+12%', count: '3.1K Diskusi', color: 'text-red-600 bg-red-50 border-red-200' },
-    { name: 'Forum Warga', growth: '+24%', count: '850 Laporan', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+    { name: 'Instagram', growth: '+32%', count: '14.2K sinyal' },
+    { name: 'TikTok', growth: '+51%', count: '28.6K sinyal' },
+    { name: 'X / Twitter', growth: '+18%', count: '9.4K sinyal' },
+    { name: 'YouTube', growth: '+12%', count: '3.1K diskusi' },
+    { name: 'Forum Warga', growth: '+24%', count: '850 laporan' },
   ];
 
   const topHashtags = [
@@ -60,243 +53,166 @@ export default function PantauanMedsosPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 border-b border-border pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <Radio className="w-6 h-6 text-gmni-red animate-pulse" />
-            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans">
-              Pantauan Media Sosial & Sinyal Publik
-            </h1>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-ink-primary">
+            Pantauan Percakapan & Sinyal Publik
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
             Sensor deteksi dini percakapan warganet, forum masyarakat, dan dinamika keresahan publik.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono bg-slate-900 text-white px-3 py-1.5 rounded-xl">
-            EARLY SIGNAL ENGINE
+          <span className="text-xs font-mono px-2.5 py-1 rounded bg-stone-100 text-ink-secondary border border-border">
+            Data Prototipe · Indikator Awal
           </span>
         </div>
       </div>
 
-      {/* MANDATORY ETHICAL WARNING BANNER (SECTION 16 & 32) */}
-      <div className="p-4 bg-amber-50 border border-amber-300/80 rounded-2xl flex items-start gap-3 text-amber-950 shadow-2xs">
-        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+      {/* Mandatory Verification Principle Notice */}
+      <div className="p-4 bg-stone-50 border border-border rounded-card flex items-start gap-3 text-ink-primary shadow-subtle">
+        <Info className="w-4 h-4 text-ink-tertiary shrink-0 mt-0.5" />
         <div className="space-y-1 text-xs">
-          <h4 className="font-bold text-amber-900">
-            Prinsip Etika & Verifikasi Sinyal:
+          <h4 className="font-semibold text-ink-primary">
+            Prinsip Etika Verifikasi:
           </h4>
-          <p className="leading-relaxed">
-            "Data media sosial merupakan <strong>sinyal percakapan publik</strong> dan tidak otomatis menjadi fakta terverifikasi. 
-            Sistem menggunakan sinyal ini semata-mata untuk early discovery / pemetaan keresahan masyarakat, 
-            dan wajib divalidasi silang dengan sumber resmi sebelum dimasukkan ke dalam dokumen Bahan Kajian."
+          <p className="text-ink-secondary leading-relaxed">
+            Data percakapan media sosial merupakan sinyal awal dinamika masyarakat dan <strong>tidak otomatis menjadi fakta hukum</strong>. Seluruh sinyal wajib divalidasi silang dengan rilis resmi dan bukti lapangan sebelum dituangkan ke dalam Bahan Kajian.
           </p>
         </div>
       </div>
 
-      {/* Platform Growth Cards Grid */}
+      {/* Platform Growth Summary Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {platforms.map(p => (
-          <div
-            key={p.name}
-            className={`p-4 rounded-xl border ${p.color} space-y-2 shadow-2xs`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900">{p.name}</span>
-              <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-white font-mono shadow-2xs">
-                {p.growth}
-              </span>
-            </div>
-            <div className="text-base sm:text-lg font-extrabold font-mono text-slate-800">
-              {p.count}
-            </div>
-            <div className="text-[10px] text-slate-500">
-              Pertumbuhan 7 hari
+          <div key={p.name} className="p-3.5 bg-surface rounded-card border border-border space-y-1 shadow-subtle">
+            <div className="text-xs font-semibold text-ink-primary">{p.name}</div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-ink-secondary">{p.count}</span>
+              <span className="text-[11px] font-mono font-semibold text-emerald-700">{p.growth}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Main Content Layout: Feeds + Trending Hashtags */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Side: Signal Feeds with Filters */}
-        <div className="lg:col-span-8 space-y-4">
-          
-          {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-subtle space-y-3">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Cari kata kunci percakapan, hashtag, atau wilayah..."
-                className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white"
-              />
+      {/* Trending Topics & Hashtags */}
+      <div className="bg-surface rounded-card border border-border p-5 space-y-3 shadow-subtle">
+        <div className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
+          Topik & Tagar Perbincangan Terkini
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {topHashtags.map(h => (
+            <div
+              key={h.tag}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-btn bg-stone-50 border border-border text-xs text-ink-primary"
+            >
+              <span className="font-semibold">{h.tag}</span>
+              <span className="text-[11px] text-ink-tertiary">{h.count}</span>
+              <span className="text-[10px] text-emerald-700 font-mono font-medium">{h.trend}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Feed Filters & Search */}
+      <div className="bg-surface p-4 rounded-card border border-border space-y-3 shadow-subtle">
+        <div className="relative">
+          <Search className="w-4 h-4 text-ink-tertiary absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Cari konten sinyal publik, tagar, atau lokus wilayah..."
+            className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-muted/60 border border-border rounded-btn placeholder:text-ink-tertiary focus:outline-none focus:bg-surface focus:border-stone-400"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-ink-tertiary uppercase">Platform:</span>
+            <select
+              value={selectedPlatform}
+              onChange={e => setSelectedPlatform(e.target.value)}
+              className="p-1.5 bg-surface border border-border rounded-btn text-xs font-medium text-ink-primary"
+            >
+              <option value="all">Semua Platform</option>
+              <option value="Instagram">Instagram</option>
+              <option value="TikTok">TikTok</option>
+              <option value="X">X (Twitter)</option>
+              <option value="YouTube">YouTube</option>
+              <option value="Forum Warga">Forum Warga</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-ink-tertiary uppercase">Sentimen:</span>
+            <select
+              value={selectedSentiment}
+              onChange={e => setSelectedSentiment(e.target.value)}
+              className="p-1.5 bg-surface border border-border rounded-btn text-xs font-medium text-ink-primary"
+            >
+              <option value="all">Semua Sentimen</option>
+              <option value="Negatif">Negatif (Keresahan)</option>
+              <option value="Kritis">Kritis</option>
+              <option value="Netral">Netral</option>
+              <option value="Positif">Positif</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Signals Feed List */}
+      <div className="space-y-3">
+        {filteredSignals.map(sig => (
+          <div
+            key={sig.id}
+            className="p-5 bg-surface rounded-card border border-border shadow-subtle hover:border-stone-400 transition-colors space-y-3"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-ink-primary">{sig.platform}</span>
+                <span className="text-ink-tertiary">·</span>
+                <span className="text-ink-secondary">{sig.location_tag}</span>
+                <span className="text-[10px] px-2 py-0.2 rounded bg-stone-100 text-ink-secondary border border-border">
+                  Sentimen: {sig.sentiment}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-[11px] text-ink-tertiary font-mono">
+                <span>{sig.growth_rate} perbincangan</span>
+                <span>·</span>
+                <span>{new Date(sig.timestamp).toLocaleTimeString('id-ID')} WIB</span>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-bold text-slate-400">Platform:</span>
-                {['all', 'Instagram', 'TikTok', 'X', 'YouTube', 'Forum Warga'].map(plt => (
-                  <button
-                    key={plt}
-                    onClick={() => setSelectedPlatform(plt)}
-                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                      selectedPlatform === plt
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {plt === 'all' ? 'Semua' : plt}
-                  </button>
+            <p className="text-xs sm:text-sm text-ink-primary leading-relaxed">
+              "{sig.content}"
+            </p>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border text-[11px] text-ink-tertiary">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1">
+                  <Heart className="w-3 h-3" /> {sig.engagement.likes.toLocaleString('id-ID')}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <MessageSquare className="w-3 h-3" /> {sig.engagement.comments.toLocaleString('id-ID')}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Share2 className="w-3 h-3" /> {sig.engagement.shares.toLocaleString('id-ID')}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {sig.keywords.map(k => (
+                  <span key={k} className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-ink-secondary">
+                    #{k}
+                  </span>
                 ))}
               </div>
-
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-slate-400">Sentimen:</span>
-                <select
-                  value={selectedSentiment}
-                  onChange={e => setSelectedSentiment(e.target.value)}
-                  className="p-1 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                >
-                  <option value="all">Semua Sentimen</option>
-                  <option value="Kritis / Resah">Kritis / Resah</option>
-                  <option value="Marah / Protes">Marah / Protes</option>
-                  <option value="Netral">Netral</option>
-                  <option value="Positif">Positif</option>
-                </select>
-              </div>
             </div>
           </div>
-
-          {/* Signals Stream List */}
-          <div className="space-y-3">
-            {filteredSignals.map(sig => (
-              <div
-                key={sig.id}
-                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-subtle hover:border-slate-300 transition-all space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                      {sig.platform}
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium">{sig.location_tag}</span>
-                    <span className="text-slate-300">•</span>
-                    <span className="text-xs text-slate-400">{sig.timestamp}</span>
-                  </div>
-
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                    sig.sentiment.includes('Protes') || sig.sentiment.includes('Marah')
-                      ? 'bg-red-50 text-red-700 border-red-200'
-                      : sig.sentiment.includes('Kritis')
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-slate-100 text-slate-700 border-slate-200'
-                  }`}>
-                    {sig.sentiment} ({sig.growth_rate})
-                  </span>
-                </div>
-
-                <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-sans">
-                  {sig.content}
-                </p>
-
-                {/* Hashtags & Keywords */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  {sig.keywords.map((kw, i) => (
-                    <span key={i} className="text-[10px] text-gmni-red bg-red-50 px-2 py-0.5 rounded-full border border-red-100 font-medium">
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Engagement Footprint */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-3.5 h-3.5 text-slate-400" />
-                      {sig.engagement.likes.toLocaleString()}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Share2 className="w-3.5 h-3.5 text-slate-400" />
-                      {sig.engagement.shares.toLocaleString()}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-                      {sig.engagement.comments.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {sig.issue_id && (
-                    <Link
-                      href={`/ai-analyst?issue=${sig.issue_id}`}
-                      className="text-xs font-semibold text-gmni-red hover:underline inline-flex items-center gap-1"
-                    >
-                      <span>Validasi Silang dengan AI</span>
-                      <Sparkles className="w-3 h-3 text-amber-500" />
-                    </Link>
-                  )}
-                </div>
-
-              </div>
-            ))}
-          </div>
-
-        </div>
-
-        {/* Right Side: Trending Hashtags & Public Sentiment Cloud */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* Top Hashtags Card */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-subtle space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <Hash className="w-4 h-4 text-gmni-red" />
-              <h3 className="text-sm font-bold text-slate-900">
-                Hashtag & Topik Tren Percakapan
-              </h3>
-            </div>
-
-            <div className="space-y-2.5">
-              {topHashtags.map((ht, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-red-50/50 rounded-xl border border-slate-200/80 transition-all group"
-                >
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 group-hover:text-gmni-red">
-                      {ht.tag}
-                    </div>
-                    <div className="text-[10px] text-slate-500">
-                      {ht.count} total engagement
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-mono">
-                    {ht.trend}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Sinyal Ingestion Architecture Info */}
-          <div className="bg-slate-900 text-white p-5 rounded-2xl space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Arsitektur Sensor Ingestion
-            </h4>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Arsitektur siap menerima multi-channel feeds: API resmi, RSS agregator berita daerah, aduan posko kader, dan public feeds untuk analisis terpadu.
-            </p>
-            <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-              <span>Status Konektor:</span>
-              <span className="text-emerald-400 font-mono font-bold">READY (5 Channel)</span>
-            </div>
-          </div>
-
-        </div>
-
+        ))}
       </div>
 
     </div>

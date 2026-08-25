@@ -2,15 +2,10 @@
 
 import React, { useState } from 'react';
 import { 
-  CheckCircle2, 
-  AlertTriangle, 
-  HelpCircle, 
   ShieldCheck, 
   ExternalLink, 
   Plus, 
-  X,
-  Filter,
-  Info
+  X
 } from 'lucide-react';
 import { Claim, ClaimType } from '@/types';
 import { useApp } from '@/context/AppContext';
@@ -22,7 +17,7 @@ interface FactVsClaimProps {
 
 export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
   const { role, addClaim } = useApp();
-  const [selectedFilter, setSelectedFilter] = useState<'all' | ClaimType>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | ClaimType>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Form State
@@ -32,8 +27,8 @@ export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
   const [newNotes, setNewNotes] = useState('');
 
   const filteredClaims = claims.filter(c => {
-    if (selectedFilter === 'all') return true;
-    return c.type === selectedFilter;
+    if (activeFilter === 'all') return true;
+    return c.type === activeFilter;
   });
 
   const countFact = claims.filter(c => c.type === 'fact').length;
@@ -63,29 +58,28 @@ export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-5 sm:p-6 space-y-6">
+    <div className="bg-surface rounded-card border border-border p-6 space-y-6 shadow-subtle">
       
-      {/* Header & Principle Explanation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-border pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-base font-bold text-slate-900 font-sans">
-              Klasifikasi Fakta vs Klaim vs Belum Terverifikasi
+            <h3 className="text-sm sm:text-base font-bold text-ink-primary">
+              Klasifikasi Temuan: Fakta vs Klaim
             </h3>
-            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200">
-              FITUR WAJIB
+            <span className="text-[10px] font-semibold px-2 py-0.5 bg-muted text-ink-secondary rounded border border-border">
+              Prinsip Verifikasi
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Memisahkan fakta terkonfirmasi dari pernyataan sepihak dan spekulasi media sosial guna mencegah distorsi data dalam kajian.
+          <p className="text-xs text-ink-secondary mt-1">
+            Memisahkan temuan terkonfirmasi dari pernyataan sepihak dan informasi yang belum terbukti.
           </p>
         </div>
 
         {(role === 'admin' || role === 'researcher') && (
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors shrink-0 shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-ink-primary hover:bg-black text-white rounded-btn transition-colors shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Tambah Temuan</span>
@@ -94,116 +88,103 @@ export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border pb-3 text-xs">
         <button
-          onClick={() => setSelectedFilter('all')}
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-            selectedFilter === 'all'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          onClick={() => setActiveFilter('all')}
+          className={`px-3 py-1.5 rounded-btn font-medium transition-colors ${
+            activeFilter === 'all'
+              ? 'bg-ink-primary text-white font-semibold'
+              : 'text-ink-secondary hover:bg-muted'
           }`}
         >
           Semua ({claims.length})
         </button>
 
         <button
-          onClick={() => setSelectedFilter('fact')}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-            selectedFilter === 'fact'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+          onClick={() => setActiveFilter('fact')}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn font-medium transition-colors ${
+            activeFilter === 'fact'
+              ? 'bg-stone-200 text-ink-primary font-semibold'
+              : 'text-ink-secondary hover:bg-muted'
           }`}
         >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          <span>✅ Terkonfirmasi ({countFact})</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+          <span>Terkonfirmasi ({countFact})</span>
         </button>
 
         <button
-          onClick={() => setSelectedFilter('claim')}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-            selectedFilter === 'claim'
-              ? 'bg-amber-600 text-white shadow-xs'
-              : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+          onClick={() => setActiveFilter('claim')}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn font-medium transition-colors ${
+            activeFilter === 'claim'
+              ? 'bg-stone-200 text-ink-primary font-semibold'
+              : 'text-ink-secondary hover:bg-muted'
           }`}
         >
-          <AlertTriangle className="w-3.5 h-3.5" />
-          <span>⚠️ Klaim / Pernyataan ({countClaim})</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+          <span>Klaim / Pernyataan ({countClaim})</span>
         </button>
 
         <button
-          onClick={() => setSelectedFilter('unverified')}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-            selectedFilter === 'unverified'
-              ? 'bg-slate-700 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
+          onClick={() => setActiveFilter('unverified')}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn font-medium transition-colors ${
+            activeFilter === 'unverified'
+              ? 'bg-stone-200 text-ink-primary font-semibold'
+              : 'text-ink-secondary hover:bg-muted'
           }`}
         >
-          <HelpCircle className="w-3.5 h-3.5" />
-          <span>❓ Belum Terverifikasi ({countUnverified})</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-stone-400" />
+          <span>Belum Terverifikasi ({countUnverified})</span>
         </button>
       </div>
 
       {/* Claims List */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {filteredClaims.length === 0 ? (
-          <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            <Info className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-            <p className="text-xs text-slate-500 font-medium">
-              Tidak ada data temuan untuk kategori ini.
-            </p>
-          </div>
+          <p className="text-xs text-ink-tertiary italic py-4 text-center">
+            Tidak ada temuan dalam kategori ini.
+          </p>
         ) : (
           filteredClaims.map(claim => {
-            let badgeBg = 'bg-emerald-50 border-emerald-200 text-emerald-900';
-            let icon = <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />;
-            let label = 'TERKONFIRMASI';
-            let labelStyle = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+            let dotColor = 'bg-emerald-600';
+            let label = 'Terkonfirmasi';
 
             if (claim.type === 'claim') {
-              badgeBg = 'bg-amber-50/70 border-amber-200 text-amber-950';
-              icon = <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />;
-              label = 'KLAIM / PERNYATAAN';
-              labelStyle = 'bg-amber-100 text-amber-900 border-amber-300';
+              dotColor = 'bg-amber-600';
+              label = 'Klaim / Pernyataan';
             } else if (claim.type === 'unverified') {
-              badgeBg = 'bg-slate-50 border-slate-200 text-slate-900';
-              icon = <HelpCircle className="w-4 h-4 text-slate-500 shrink-0" />;
-              label = 'BELUM TERVERIFIKASI';
-              labelStyle = 'bg-slate-200 text-slate-700 border-slate-300';
+              dotColor = 'bg-stone-400';
+              label = 'Belum Terverifikasi';
             }
 
             return (
               <div
                 key={claim.id}
-                className={`p-4 rounded-xl border ${badgeBg} transition-all space-y-2.5`}
+                className="p-4 rounded-btn border border-border bg-stone-50/50 hover:bg-stone-50 transition-colors space-y-2"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5">
-                    {icon}
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${labelStyle}`}>
-                      {label}
-                    </span>
+                <div className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                    <span className="font-semibold text-ink-primary">{label}</span>
                   </div>
-
-                  <div className="flex items-center gap-2 text-[11px] font-mono text-slate-500">
-                    <span>Keyakinan:</span>
-                    <span className="font-bold text-slate-700">{claim.confidence_score}%</span>
-                  </div>
+                  <span className="text-ink-tertiary font-mono">
+                    Keyakinan: {claim.confidence_score}%
+                  </span>
                 </div>
 
-                <p className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed pl-6.5">
+                <p className="text-xs sm:text-sm text-ink-primary leading-relaxed">
                   {claim.content}
                 </p>
 
-                <div className="pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-600 gap-1 pl-6.5">
+                <div className="pt-1.5 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-ink-secondary gap-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-slate-700">Sumber:</span>
-                    <span>{claim.source_name}</span>
+                    <span className="text-ink-tertiary">Sumber:</span>
+                    <span className="font-medium text-ink-primary">{claim.source_name}</span>
                     {claim.source_url && (
                       <a
                         href={claim.source_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-gmni-red hover:underline inline-flex items-center gap-0.5 ml-1"
+                        className="text-primary hover:underline inline-flex items-center gap-0.5 ml-1"
                       >
                         <ExternalLink className="w-3 h-3" />
                       </a>
@@ -211,7 +192,7 @@ export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
                   </div>
 
                   {claim.verification_notes && (
-                    <span className="italic text-slate-500 text-[10px]">
+                    <span className="text-ink-tertiary italic text-[10px]">
                       Catatan: {claim.verification_notes}
                     </span>
                   )}
@@ -222,17 +203,17 @@ export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
         )}
       </div>
 
-      {/* Add Claim Modal */}
+      {/* Add Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h4 className="text-sm font-bold text-slate-900">
-                Tambah Fakta / Klaim / Catatan Lapangan
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-primary/40 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-surface rounded-card p-6 shadow-card border border-border space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h4 className="text-sm font-bold text-ink-primary">
+                Tambah Temuan Fakta atau Klaim
               </h4>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-ink-tertiary hover:text-ink-primary"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -240,36 +221,36 @@ export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
 
             <form onSubmit={handleAddClaim} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Klasifikasi Status:
+                <label className="block font-medium text-ink-secondary mb-1">
+                  Status Temuan:
                 </label>
                 <select
                   value={newType}
                   onChange={e => setNewType(e.target.value as ClaimType)}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                  className="w-full p-2 bg-surface border border-border rounded-btn text-xs"
                 >
-                  <option value="fact">✅ Terkonfirmasi (Dokumen / Sumber Resmi)</option>
-                  <option value="claim">⚠️ Klaim / Pernyataan Narasumber</option>
-                  <option value="unverified">❓ Belum Terverifikasi (Sinyal Medsos / Desas-desus)</option>
+                  <option value="fact">Terkonfirmasi (Dokumen / Data Resmi)</option>
+                  <option value="claim">Klaim / Pernyataan Narasumber</option>
+                  <option value="unverified">Belum Terverifikasi (Sinyal Publik)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Isi Temuan / Pernyataan:
+                <label className="block font-medium text-ink-secondary mb-1">
+                  Uraian Temuan:
                 </label>
                 <textarea
                   value={newContent}
                   onChange={e => setNewContent(e.target.value)}
                   placeholder="Tuliskan temuan atau data yang diperoleh..."
                   rows={3}
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                  className="w-full p-2 bg-surface border border-border rounded-btn text-xs focus:outline-none focus:border-stone-400"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
+                <label className="block font-medium text-ink-secondary mb-1">
                   Nama Sumber / Instansi:
                 </label>
                 <input
@@ -277,35 +258,35 @@ export default function FactVsClaim({ issueId, claims }: FactVsClaimProps) {
                   value={newSourceName}
                   onChange={e => setNewSourceName(e.target.value)}
                   placeholder="Misal: Humas Polres Purwakarta / Surat Terbuka Serikat"
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                  className="w-full p-2 bg-surface border border-border rounded-btn text-xs"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Catatan Verifikasi (Opsional):
+                <label className="block font-medium text-ink-secondary mb-1">
+                  Catatan Verifikasi:
                 </label>
                 <input
                   type="text"
                   value={newNotes}
                   onChange={e => setNewNotes(e.target.value)}
-                  placeholder="Misal: Nomor surat edaran, tanggal rilis, atau hasil cek lapangan..."
-                  className="w-full p-2 border border-slate-300 rounded-lg text-xs"
+                  placeholder="Nomor surat edaran, tanggal rilis, atau hasil cek lapangan..."
+                  className="w-full p-2 bg-surface border border-border rounded-btn text-xs"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-2">
+              <div className="pt-3 flex justify-end gap-2 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium"
+                  className="px-3 py-2 bg-muted hover:bg-stone-200 text-ink-primary rounded-btn font-medium"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gmni-red hover:bg-red-700 text-white rounded-lg font-semibold shadow-xs"
+                  className="px-4 py-2 bg-ink-primary hover:bg-black text-white rounded-btn font-semibold"
                 >
                   Simpan Temuan
                 </button>
