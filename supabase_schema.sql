@@ -38,8 +38,26 @@ CREATE TABLE IF NOT EXISTS raw_sources (
   issue_id UUID REFERENCES issues(id) ON DELETE SET NULL
 );
 
--- Indexes for performance
+-- 3. Indexes
 CREATE INDEX IF NOT EXISTS idx_issues_slug ON issues(slug);
 CREATE INDEX IF NOT EXISTS idx_issues_location ON issues(location);
 CREATE INDEX IF NOT EXISTS idx_issues_detected_at ON issues(detected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_raw_sources_processed ON raw_sources(processed);
+
+-- 4. Row Level Security (RLS) Policies untuk Anon API Key
+ALTER TABLE issues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE raw_sources ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read on issues" ON issues;
+DROP POLICY IF EXISTS "Allow public insert on issues" ON issues;
+DROP POLICY IF EXISTS "Allow public update on issues" ON issues;
+CREATE POLICY "Allow public read on issues" ON issues FOR SELECT USING (true);
+CREATE POLICY "Allow public insert on issues" ON issues FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update on issues" ON issues FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on raw_sources" ON raw_sources;
+DROP POLICY IF EXISTS "Allow public insert on raw_sources" ON raw_sources;
+DROP POLICY IF EXISTS "Allow public update on raw_sources" ON raw_sources;
+CREATE POLICY "Allow public read on raw_sources" ON raw_sources FOR SELECT USING (true);
+CREATE POLICY "Allow public insert on raw_sources" ON raw_sources FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update on raw_sources" ON raw_sources FOR UPDATE USING (true);
