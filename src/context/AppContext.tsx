@@ -1,11 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Issue, UserRole, BahanKajianDocument, Claim, Source } from '@/types';
 import { mockIssues } from '@/data/mockIssues';
 import { mockClaims } from '@/data/mockClaims';
 import { mockSources } from '@/data/mockSources';
 import { mockKajianDocs } from '@/data/mockKajian';
+import { supabase, isSupabaseConfigured } from '@/lib/services/supabase';
+import { mapSupabaseRowToIssue, extractClaimsFromRow, extractSourcesFromRow, SupabaseIssueRow } from '@/lib/services/issue-adapter';
 
 interface AppContextType {
   role: UserRole;
@@ -24,12 +26,15 @@ interface AppContextType {
   setIsSearchOpen: (open: boolean) => void;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
+  isLoadingDb: boolean;
+  refreshDbData: () => Promise<void>;
+  isRealData: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRole] = useState<UserRole>('researcher'); // default to researcher / kader for rich capability
+  const [role, setRole] = useState<UserRole>('researcher');
   const [issues, setIssues] = useState<Issue[]>(mockIssues);
   const [claims, setClaims] = useState<Claim[]>(mockClaims);
   const [sources, setSources] = useState<Source[]>(mockSources);
@@ -37,6 +42,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [savedIssueIds, setSavedIssueIds] = useState<string[]>(['issue-pwk-01', 'issue-pwk-02']);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLoadingDb, setIsLoadingDb] = useState(false);
+  const [isRealData, setIsRealData] = useState(false);
+
+  // Fetch real data from Supabase
+  const refreshDbData = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      return;
+    }
+
+    try {
+      setIsLoadingDb(true);
+      const { data, error } = await supabase
+        .from('issues')
+        .select('*')
+        .order('detected_at', { ascending: false });
+
+      if (error) {
+        console.warn('[AppContext] Supabase fetch warning:', error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const rows = data as SupabaseIssueRow[];
+        const mappedIssues = rows.map(mapSupabaseRowToIssue);
+        const mappedClaims = rows.flatMap(extractClaimsFromRow);
+        const mappedSources = rows.flatMap(extractSourcesFromRow);
+
+        setIssues(mappedIssues);
+        setClaims(mappedClaims.length > 0 ? mappedClaims : mockClaims);
+        setSources(mappedSources.length > 0 ? mappedSources : mockSources);
+        setIsRealData(true);
+      }
+    } catch (err) {
+      console.warn('[AppContext] Error connecting to Supabase:', err);
+    } finally {
+      setIsLoadingDb(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshDbData();
+  }, [refreshDbData]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,7 +136,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isSearchOpen,
         setIsSearchOpen,
         isAuthModalOpen,
-        setIsAuthModalOpen
+        setIsAuthModalOpen,
+        isLoadingDb,
+        refreshDbData,
+        isRealData,
       }}
     >
       {children}

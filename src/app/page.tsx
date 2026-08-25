@@ -20,10 +20,12 @@ import LocationBadge from '@/components/ui/LocationBadge';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import ScoreIndicator from '@/components/ui/ScoreIndicator';
+import { useApp } from '@/context/AppContext';
 import { mockIssues } from '@/data/mockIssues';
 
 export default function LandingPage() {
-  const snapshotIssue = mockIssues[0]; // Jatiluhur priority
+  const { issues } = useApp();
+  const snapshotIssue = issues[0] || mockIssues[0];
 
   const workflowSteps = [
     { num: '01', title: 'Penangkapan Sinyal', desc: 'Identifikasi awal dari rilis pers resmi, media massa daerah, dan aduan posko kader.' },
@@ -158,7 +160,7 @@ export default function LandingPage() {
 
       {/* ISSUE PRIORITY BOARD */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <PriorityBoard issues={mockIssues} limit={3} />
+        <PriorityBoard issues={issues} limit={3} />
       </section>
 
       {/* WORKFLOW PIPELINE SECTION */}

@@ -221,7 +221,7 @@ export default function IssueDetailPage() {
         {/* Section 1: Executive Summary & Facts Structure */}
         <AISummarizer summary={issue.summary_ai} />
 
-        {/* Section 2: Fact vs Claim System */}
+        {/* Section 2: Fact vs Claim System (verified_facts, claims, unverified) */}
         <FactVsClaim issueId={issue.id} claims={issueClaims} />
 
         {/* Section 3: Sources & Credibility Index */}

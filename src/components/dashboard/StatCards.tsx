@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useApp } from '@/context/AppContext';
 
 interface StatCardsProps {
   totalIssues?: number;
@@ -10,19 +11,24 @@ interface StatCardsProps {
   purwakartaIssues?: number;
 }
 
-export default function StatCards({
-  totalIssues = 127,
-  newIssues = 18,
-  developingIssues = 11,
-  priorityIssues = 7,
-  purwakartaIssues = 32,
-}: StatCardsProps) {
+export default function StatCards(props: StatCardsProps) {
+  const { issues, isRealData } = useApp();
+
+  const total = props.totalIssues ?? issues.length;
+  const newCount = props.newIssues ?? issues.filter(i => {
+    const diffHours = (Date.now() - new Date(i.first_detected_at).getTime()) / (1000 * 60 * 60);
+    return diffHours <= 72 || isNaN(diffHours);
+  }).length;
+  const developing = props.developingIssues ?? issues.filter(i => i.status === 'Developing').length;
+  const priority = props.priorityIssues ?? issues.filter(i => i.priority_level === 'Tinggi' || i.impact_score >= 85).length;
+  const purwakarta = props.purwakartaIssues ?? issues.filter(i => i.location.toLowerCase().includes('purwakarta')).length;
+
   const metrics = [
-    { label: 'Isu Dipantau', value: totalIssues, note: 'Agustus 2026' },
-    { label: 'Terdeteksi Baru', value: newIssues, note: '48 jam terakhir' },
-    { label: 'Sedang Berkembang', value: developingIssues, note: 'Eskalasi publik' },
-    { label: 'Prioritas Kajian', value: priorityIssues, note: 'Rekomendasi riset', accent: true },
-    { label: 'Fokus Purwakarta', value: purwakartaIssues, note: 'Basis teritorial' },
+    { label: 'Isu Dipantau', value: total, note: 'Agustus 2026' },
+    { label: 'Terdeteksi Baru', value: newCount, note: 'Pantauan terbaru' },
+    { label: 'Sedang Berkembang', value: developing, note: 'Eskalasi publik' },
+    { label: 'Prioritas Kajian', value: priority, note: 'Rekomendasi riset', accent: true },
+    { label: 'Fokus Purwakarta', value: purwakarta, note: 'Basis teritorial' },
   ];
 
   return (
@@ -32,7 +38,7 @@ export default function StatCards({
           Ringkasan Pantauan
         </span>
         <span className="font-mono text-[11px] text-ink-tertiary">
-          Data Prototipe
+          {isRealData ? 'Terhubung Database' : 'Pantauan Terbaru'}
         </span>
       </div>
 
