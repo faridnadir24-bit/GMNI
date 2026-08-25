@@ -45,40 +45,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [isRealData, setIsRealData] = useState(false);
 
-  // Fetch real data from Supabase
+  // Fetch real data from Supabase / API
   const refreshDbData = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
-      return;
-    }
+    setIsLoadingDb(true);
 
     try {
-      setIsLoadingDb(true);
-      const { data, error } = await supabase
-        .from('issues')
-        .select('*')
-        .order('detected_at', { ascending: false });
+      // 1. Coba ambil dari /api/issues internal server
+      const apiRes = await fetch('/api/issues', { cache: 'no-store' });
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const rows = json.data as SupabaseIssueRow[];
+          const mappedIssues = rows.map(mapSupabaseRowToIssue);
+          const mappedClaims = rows.flatMap(extractClaimsFromRow);
+          const mappedSources = rows.flatMap(extractSourcesFromRow);
 
-      if (error) {
-        console.warn('[AppContext] Supabase fetch warning:', error.message);
-        return;
+          setIssues(mappedIssues);
+          setClaims(mappedClaims.length > 0 ? mappedClaims : mockClaims);
+          setSources(mappedSources.length > 0 ? mappedSources : mockSources);
+          setIsRealData(true);
+          setIsLoadingDb(false);
+          return;
+        }
       }
-
-      if (data && data.length > 0) {
-        const rows = data as SupabaseIssueRow[];
-        const mappedIssues = rows.map(mapSupabaseRowToIssue);
-        const mappedClaims = rows.flatMap(extractClaimsFromRow);
-        const mappedSources = rows.flatMap(extractSourcesFromRow);
-
-        setIssues(mappedIssues);
-        setClaims(mappedClaims.length > 0 ? mappedClaims : mockClaims);
-        setSources(mappedSources.length > 0 ? mappedSources : mockSources);
-        setIsRealData(true);
-      }
-    } catch (err) {
-      console.warn('[AppContext] Error connecting to Supabase:', err);
-    } finally {
-      setIsLoadingDb(false);
+    } catch (e) {
+      console.warn('[AppContext] API route fetch fallback to direct Supabase client');
     }
+
+    // 2. Direct Supabase Client fallback
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('issues')
+          .select('*')
+          .order('detected_at', { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          const rows = data as SupabaseIssueRow[];
+          const mappedIssues = rows.map(mapSupabaseRowToIssue);
+          const mappedClaims = rows.flatMap(extractClaimsFromRow);
+          const mappedSources = rows.flatMap(extractSourcesFromRow);
+
+          setIssues(mappedIssues);
+          setClaims(mappedClaims.length > 0 ? mappedClaims : mockClaims);
+          setSources(mappedSources.length > 0 ? mappedSources : mockSources);
+          setIsRealData(true);
+        }
+      } catch (err) {
+        console.warn('[AppContext] Error connecting to Supabase:', err);
+      }
+    }
+
+    setIsLoadingDb(false);
   }, []);
 
   useEffect(() => {
