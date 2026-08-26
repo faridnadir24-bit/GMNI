@@ -17,10 +17,9 @@ import LocationBadge from '@/components/ui/LocationBadge';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { useApp } from '@/context/AppContext';
-import { mockSignals } from '@/data/mockSignals';
 
 export default function DashboardPage() {
-  const { issues, syncLiveNews, isSyncingNews } = useApp();
+  const { issues, articles, syncLiveNews, isSyncingNews } = useApp();
   const [selectedTerritory, setSelectedTerritory] = useState<TerritoryScope>('purwakarta');
   const [selectedSubTerritory, setSelectedSubTerritory] = useState<string>('Semua Kecamatan');
 
@@ -117,13 +116,13 @@ export default function DashboardPage() {
         {/* Side: Sinyal Publik & Aktivitas Terbaru */}
         <div className="lg:col-span-4 space-y-6">
           
-          {/* Public Signal Stream */}
+          {/* Public Signal Stream / Live News Stream */}
           <div className="bg-surface rounded-card border border-border p-5 space-y-4 shadow-subtle">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <Radio className="w-4 h-4 text-ink-secondary" />
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-primary">
-                  Sinyal Percakapan Publik
+                  Arus Berita Terverifikasi
                 </h3>
               </div>
               <Link href="/pantauan" className="text-xs text-primary hover:underline font-medium">
@@ -132,30 +131,36 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-3">
-              {mockSignals.slice(0, 3).map(sig => (
-                <div
-                  key={sig.id}
-                  className="p-3 bg-stone-50/70 rounded-btn border border-border/70 text-xs space-y-1.5"
-                >
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-ink-primary">{sig.platform}</span>
-                    <span className="text-ink-tertiary">{sig.location_tag}</span>
-                  </div>
+              {articles.length > 0 ? (
+                articles.slice(0, 3).map(art => (
+                  <div
+                    key={art.id}
+                    className="p-3 bg-stone-50/70 rounded-btn border border-border/70 text-xs space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-ink-primary">{art.source_name}</span>
+                      <span className="text-ink-tertiary">{art.location || 'Nasional'}</span>
+                    </div>
 
-                  <p className="text-ink-secondary leading-snug">
-                    "{sig.content.slice(0, 110)}..."
-                  </p>
+                    <p className="text-ink-secondary leading-snug font-medium line-clamp-2">
+                      {art.title}
+                    </p>
 
-                  <div className="flex items-center justify-between text-[10px] text-ink-tertiary pt-0.5">
-                    <span>Sentimen: {sig.sentiment}</span>
-                    <span className="font-mono">{sig.growth_rate}</span>
+                    <div className="flex items-center justify-between text-[10px] text-ink-tertiary pt-0.5">
+                      <span>Kategori: {art.category || 'Umum'}</span>
+                      <span className="font-mono text-emerald-700 font-medium">Terverifikasi</span>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-xs text-ink-tertiary">
+                  Belum ada berita terindeks.
                 </div>
-              ))}
+              )}
             </div>
 
             <p className="text-[11px] text-ink-tertiary italic pt-1">
-              Sinyal publik adalah indikator keresahan masyarakat dan wajib divalidasi silang.
+              Data ditarik secara berkala dari portal berita daerah & nasional terpercaya.
             </p>
           </div>
 

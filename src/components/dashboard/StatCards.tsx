@@ -12,9 +12,9 @@ interface StatCardsProps {
 }
 
 export default function StatCards(props: StatCardsProps) {
-  const { issues, isRealData, syncStatus, lastSyncedTime } = useApp();
+  const { issues, isLoadingDb, isRealData, syncStatus, lastSyncedTime } = useApp();
 
-  const total = props.totalIssues ?? issues.length;
+  const total = props.totalIssues ?? (issues.length > 0 ? issues.length : (syncStatus?.total_issues ?? 0));
   const newCount = props.newIssues ?? issues.filter(i => {
     const diffHours = (Date.now() - new Date(i.first_detected_at || i.last_updated_at).getTime()) / (1000 * 60 * 60);
     return diffHours <= 24 || isNaN(diffHours);
@@ -38,12 +38,12 @@ export default function StatCards(props: StatCardsProps) {
           <span className="font-semibold uppercase tracking-wider text-[11px] text-ink-primary">
             Ringkasan Pantauan Isu
           </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+          <span className={`w-1.5 h-1.5 rounded-full ${isLoadingDb ? 'bg-amber-500 animate-pulse' : 'bg-emerald-600'}`} />
         </div>
 
         <div className="flex items-center gap-3 text-[11px] font-mono text-ink-tertiary">
           <span>
-            {lastSyncedTime ? `Sinkronisasi: ${lastSyncedTime} WIB` : 'Near Real-Time'}
+            {isLoadingDb ? 'Menghubungkan basis data...' : (lastSyncedTime ? `Sinkronisasi: ${lastSyncedTime} WIB` : 'Pantauan Terhubung')}
           </span>
           <span className="hidden sm:inline">·</span>
           <span className="hidden sm:inline">
@@ -57,7 +57,7 @@ export default function StatCards(props: StatCardsProps) {
           <div key={idx} className={`${idx !== 0 ? 'sm:pl-4' : ''} pt-2 sm:pt-0 space-y-1`}>
             <div className="flex items-baseline gap-1.5">
               <span className={`text-xl sm:text-2xl font-bold font-mono ${item.accent ? 'text-primary' : 'text-ink-primary'}`}>
-                {item.value}
+                {isLoadingDb && issues.length === 0 ? '-' : item.value}
               </span>
               <span className="text-xs text-ink-secondary">isu</span>
             </div>

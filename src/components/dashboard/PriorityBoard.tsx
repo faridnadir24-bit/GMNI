@@ -24,7 +24,7 @@ export default function PriorityBoard({
   subtitle = "Peringkat isu berdasarkan skor dampak kebijakan dan ketersediaan bukti sumber data.",
   limit
 }: PriorityBoardProps) {
-  const { savedIssueIds, toggleSaveIssue } = useApp();
+  const { savedIssueIds, toggleSaveIssue, isLoadingDb } = useApp();
   const displayIssues = limit ? issues.slice(0, limit) : issues;
 
   return (
@@ -48,16 +48,33 @@ export default function PriorityBoard({
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {displayIssues.map(issue => {
-          const isSaved = savedIssueIds.includes(issue.id);
-          const isHighPriority = issue.priority_level === 'Tinggi' || issue.impact_score >= 85;
+      {isLoadingDb && displayIssues.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-surface rounded-card border border-border p-5 shadow-subtle space-y-4 animate-pulse">
+              <div className="h-4 bg-muted rounded w-1/3" />
+              <div className="h-6 bg-muted rounded w-3/4" />
+              <div className="h-12 bg-muted rounded w-full" />
+              <div className="h-16 bg-stone-100 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : displayIssues.length === 0 ? (
+        <div className="bg-surface rounded-card border border-border p-8 text-center space-y-2">
+          <p className="text-sm font-semibold text-ink-primary">Belum ada isu terpantau</p>
+          <p className="text-xs text-ink-secondary">Basis data sedang terhubung. Jalankan sinkronisasi berita untuk memuat isu baru.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {displayIssues.map(issue => {
+            const isSaved = savedIssueIds.includes(issue.id);
+            const isHighPriority = issue.priority_level === 'Tinggi' || issue.impact_score >= 85;
 
-          return (
-            <div
-              key={issue.id}
-              className="bg-surface rounded-card border border-border p-5 shadow-subtle hover:border-stone-400 hover:shadow-card-hover transition-all flex flex-col justify-between space-y-4 group"
-            >
+            return (
+              <div
+                key={issue.id}
+                className="bg-surface rounded-card border border-border p-5 shadow-subtle hover:border-stone-400 hover:shadow-card-hover transition-all flex flex-col justify-between space-y-4 group"
+              >
               <div className="space-y-3">
                 {/* Meta Top: Status & Priority */}
                 <div className="flex items-center justify-between">
@@ -138,6 +155,7 @@ export default function PriorityBoard({
           );
         })}
       </div>
+      )}
     </section>
   );
 }

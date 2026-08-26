@@ -111,7 +111,7 @@ export default function Footer() {
           <div className="flex items-center gap-2 text-[11px]">
             <span>Membaca Persoalan, Mengawal Perubahan</span>
             <span>·</span>
-            <span className="font-mono">Data Prototipe</span>
+            <span className="font-mono text-emerald-700 font-medium">Pantauan Terhubung</span>
           </div>
         </div>
       </div>
