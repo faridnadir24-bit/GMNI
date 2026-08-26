@@ -9,6 +9,12 @@ import { mockKajianDocs } from '@/data/mockKajian';
 import { supabase, isSupabaseConfigured } from '@/lib/services/supabase';
 import { mapSupabaseRowToIssue, extractClaimsFromRow, extractSourcesFromRow, SupabaseIssueRow } from '@/lib/services/issue-adapter';
 
+interface SyncResult {
+  success: boolean;
+  message: string;
+  count?: number;
+}
+
 interface AppContextType {
   role: UserRole;
   setRole: (role: UserRole) => void;
@@ -27,7 +33,10 @@ interface AppContextType {
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
   isLoadingDb: boolean;
+  isSyncingNews: boolean;
+  lastSyncedTime: string | null;
   refreshDbData: () => Promise<void>;
+  syncLiveNews: () => Promise<SyncResult>;
   isRealData: boolean;
 }
 
@@ -43,6 +52,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLoadingDb, setIsLoadingDb] = useState(false);
+  const [isSyncingNews, setIsSyncingNews] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
   const [isRealData, setIsRealData] = useState(false);
 
   // Fetch real data from Supabase / API
@@ -99,8 +110,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsLoadingDb(false);
   }, []);
 
+  // Trigger On-Demand Real-Time News Ingestion
+  const syncLiveNews = useCallback(async (): Promise<SyncResult> => {
+    setIsSyncingNews(true);
+
+    try {
+      const res = await fetch('/api/sync-news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setLastSyncedTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+        await refreshDbData();
+        setIsSyncingNews(false);
+        return {
+          success: true,
+          message: data.message || 'Sinkronisasi berita real-time berhasil.',
+          count: data.summary?.newOrUpdatedIssues || 0,
+        };
+      } else {
+        setIsSyncingNews(false);
+        return {
+          success: false,
+          message: data.message || 'Gagal melakukan sinkronisasi berita.',
+        };
+      }
+    } catch (err: any) {
+      setIsSyncingNews(false);
+      return {
+        success: false,
+        message: err?.message || 'Terjadi kesalahan jaringan saat sinkronisasi.',
+      };
+    }
+  }, [refreshDbData]);
+
   useEffect(() => {
     refreshDbData();
+
+    // Background auto-refresh every 60 seconds
+    const interval = setInterval(() => {
+      refreshDbData();
+    }, 60000);
+
+    return () => clearInterval(interval);
   }, [refreshDbData]);
 
   useEffect(() => {
@@ -156,7 +211,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isAuthModalOpen,
         setIsAuthModalOpen,
         isLoadingDb,
+        isSyncingNews,
+        lastSyncedTime,
         refreshDbData,
+        syncLiveNews,
         isRealData,
       }}
     >

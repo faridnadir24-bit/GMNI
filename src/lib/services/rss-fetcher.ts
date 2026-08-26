@@ -18,10 +18,15 @@ export interface RawRSSItem {
 }
 
 export const RSS_FEEDS = [
-  { name: 'Detik News', url: 'https://rss.detik.com/index.php/detikcom' },
-  { name: 'Kompas News', url: 'https://news.kompas.com/rss' },
-  { name: 'Antara News Terkini', url: 'https://www.antaranews.com/rss/terkini' },
-  { name: 'Antara Jawa Barat', url: 'https://jabar.antaranews.com/rss/terkini' },
+  { name: 'Antara Terkini', url: 'https://www.antaranews.com/rss/terkini' },
+  { name: 'Antara Politik', url: 'https://www.antaranews.com/rss/politik' },
+  { name: 'Antara Hukum', url: 'https://www.antaranews.com/rss/hukum' },
+  { name: 'Antara Ekonomi', url: 'https://www.antaranews.com/rss/ekonomi' },
+  { name: 'CNN Indonesia Nasional', url: 'https://www.cnnindonesia.com/nasional/rss' },
+  { name: 'CNN Indonesia Ekonomi', url: 'https://www.cnnindonesia.com/ekonomi/rss' },
+  { name: 'Tempo Nasional', url: 'https://rss.tempo.co/nasional' },
+  { name: 'Tempo Metro & Daerah', url: 'https://rss.tempo.co/metro' },
+  { name: 'Republika Terkini', url: 'https://www.republika.co.id/rss' },
 ];
 
 export async function fetchRawRSSFeeds(): Promise<RawRSSItem[]> {
@@ -45,8 +50,8 @@ export async function fetchRawRSSFeeds(): Promise<RawRSSItem[]> {
           });
         }
       }
-    } catch (err) {
-      console.warn(`[RSS Fetcher] Gagal mengambil feed dari ${feed.name} (${feed.url}):`, err);
+    } catch (err: any) {
+      console.warn(`[RSS Fetcher] Gagal mengambil feed dari ${feed.name} (${feed.url}):`, err?.message || err);
     }
   }
 

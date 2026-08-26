@@ -7,17 +7,35 @@ import { usePathname } from 'next/navigation';
 import { 
   Search, 
   User, 
-  ChevronDown,
-  ShieldCheck,
-  Check
+  ChevronDown, 
+  ShieldCheck, 
+  Check, 
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { UserRole } from '@/types';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { role, setRole, setIsSearchOpen, setIsAuthModalOpen } = useApp();
+  const { 
+    role, 
+    setRole, 
+    setIsSearchOpen, 
+    setIsAuthModalOpen, 
+    syncLiveNews, 
+    isSyncingNews, 
+    lastSyncedTime 
+  } = useApp();
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [syncToast, setSyncToast] = useState<string | null>(null);
+
+  const handleSyncClick = async () => {
+    if (isSyncingNews) return;
+    const res = await syncLiveNews();
+    setSyncToast(res.message);
+    setTimeout(() => setSyncToast(null), 3500);
+  };
 
   const navLinks = [
     { name: 'Dashboard', href: '/dashboard' },
@@ -83,8 +101,26 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Action Buttons: Search, Role Switcher, Profile */}
+          {/* Action Buttons: Sync News, Search, Role Switcher, Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
+            
+            {/* Real-Time Sync News Button */}
+            <button
+              onClick={handleSyncClick}
+              disabled={isSyncingNews}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-btn border transition-all ${
+                isSyncingNews
+                  ? 'bg-muted text-ink-secondary border-border cursor-not-allowed'
+                  : 'bg-surface hover:bg-muted text-ink-primary border-border active:scale-95'
+              }`}
+              title="Tarik & Sinkronisasi Berita Real-Time dari Media Nasional & Daerah"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-primary ${isSyncingNews ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline text-[11px]">
+                {isSyncingNews ? 'Menarik Berita...' : 'Tarik Berita'}
+              </span>
+            </button>
+
             {/* Quick Search */}
             <button
               onClick={() => setIsSearchOpen(true)}
@@ -145,6 +181,14 @@ export default function Navbar() {
 
         </div>
       </div>
+
+      {/* Floating Sync Toast Notification */}
+      {syncToast && (
+        <div className="bg-ink-primary text-white text-xs px-4 py-2 text-center flex items-center justify-center gap-2 animate-in slide-in-from-top duration-200">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>{syncToast}</span>
+        </div>
+      )}
     </header>
   );
 }

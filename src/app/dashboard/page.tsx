@@ -19,7 +19,7 @@ import { useApp } from '@/context/AppContext';
 import { mockSignals } from '@/data/mockSignals';
 
 export default function DashboardPage() {
-  const { issues } = useApp();
+  const { issues, syncLiveNews, isSyncingNews } = useApp();
   const [selectedTerritory, setSelectedTerritory] = useState<TerritoryScope>('purwakarta');
   const [selectedSubTerritory, setSelectedSubTerritory] = useState<string>('Semua Kecamatan');
 
@@ -55,13 +55,26 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => syncLiveNews()}
+            disabled={isSyncingNews}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-btn border transition-all ${
+              isSyncingNews
+                ? 'bg-muted text-ink-secondary border-border cursor-not-allowed'
+                : 'bg-primary text-white border-primary hover:bg-[#8F0D15] active:scale-95 shadow-subtle'
+            }`}
+            title="Tarik berita real-time langsung dari RSS media daerah & nasional"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${isSyncingNews ? 'animate-spin' : ''}`} />
+            <span>{isSyncingNews ? 'Menarik Berita...' : 'Tarik Berita Terbaru'}</span>
+          </button>
+
           <Link
             href="/ai-analyst"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Issue Analyst</span>
+            <span>AI Analyst</span>
           </Link>
 
           <Link
