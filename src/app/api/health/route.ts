@@ -44,11 +44,20 @@ export async function GET() {
   }
 
   const isDbConnected = tableStatus.issues === 'available' || tableStatus.raw_sources === 'available';
+  const hasSchemaV2 = tableStatus.articles === 'available' && tableStatus.issue_sources === 'available' && tableStatus.issue_events === 'available';
 
   return NextResponse.json({
     success: isDbConnected,
     status: isDbConnected ? 'ok' : 'degraded',
-    environment: {
+    database: isDbConnected ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV || 'production',
+    schema_v2_status: hasSchemaV2 ? 'active' : 'schema_v2_missing',
+    issues_table: tableStatus.issues === 'available',
+    raw_sources_table: tableStatus.raw_sources === 'available',
+    articles_table: tableStatus.articles === 'available',
+    issue_sources_table: tableStatus.issue_sources === 'available',
+    issue_events_table: tableStatus.issue_events === 'available',
+    config: {
       supabase_url: 'configured',
       supabase_anon_key: 'configured',
       openai_api_key: process.env.OPENAI_API_KEY ? 'configured' : 'missing',
