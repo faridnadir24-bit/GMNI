@@ -5,378 +5,409 @@ import Link from 'next/link';
 import { 
   Radio, 
   Search, 
-  AlertTriangle,
+  ArrowUpRight, 
+  RefreshCw, 
   ExternalLink,
   MessageSquare,
-  Share2,
-  Heart,
-  Info,
-  RefreshCw,
-  Sparkles,
-  Newspaper,
+  TrendingUp,
+  Layers,
+  Filter,
   CheckCircle2,
-  ArrowRight
+  Calendar,
+  Building2,
+  ArrowRight,
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { mockSignals } from '@/data/mockSignals';
-import { formatDateIndo } from '@/lib/utils';
 import LocationBadge from '@/components/ui/LocationBadge';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { formatDateIndo } from '@/lib/utils';
+import { Article, Issue } from '@/types';
 
-export default function PantauanMedsosPage() {
-  const { issues, isSyncingNews, syncLiveNews, lastSyncedTime, isRealData } = useApp();
-  const [activeTab, setActiveTab] = useState<'news' | 'signals'>('news');
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
-  const [selectedSentiment, setSelectedSentiment] = useState<string>('all');
+export default function PantauanPage() {
+  const { issues, articles, syncLiveNews, isSyncingNews, lastSyncedTime } = useApp();
+  const [activeViewMode, setActiveViewMode] = useState<'articles' | 'issues' | 'signals'>('articles');
   const [searchQuery, setSearchQuery] = useState('');
-  const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [syncToast, setSyncToast] = useState<{ show: boolean; msg: string; count?: number } | null>(null);
 
-  const handleSync = async () => {
-    const res = await syncLiveNews();
-    setSyncStatusMsg(res.message);
-    setTimeout(() => setSyncStatusMsg(null), 4000);
+  const handleManualSync = async () => {
+    const result = await syncLiveNews();
+    setSyncToast({
+      show: true,
+      msg: result.message,
+      count: result.count,
+    });
+    setTimeout(() => {
+      setSyncToast(null);
+    }, 4500);
   };
 
-  const platforms = [
-    { name: 'Antara News', growth: '+42%', count: 'Liputan Resmi' },
-    { name: 'Tempo Nasional', growth: '+28%', count: 'Investigasi' },
-    { name: 'CNN Indonesia', growth: '+35%', count: 'Politik/Ekonomi' },
-    { name: 'Republika', growth: '+15%', count: 'Daerah' },
-    { name: 'Posko Kader', growth: '+50%', count: 'Purwakarta' },
-  ];
+  // Filter Articles
+  const filteredArticles = articles.filter(art => {
+    const matchQuery = 
+      art.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      art.source_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (art.category && art.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (art.location && art.location.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchCategory = categoryFilter === 'all' || art.category === categoryFilter;
+    const matchLocation = locationFilter === 'all' || (art.location && art.location.toLowerCase().includes(locationFilter.toLowerCase()));
+    return matchQuery && matchCategory && matchLocation;
+  });
 
-  const topHashtags = [
-    { tag: '#KJAJatiluhur', count: '18.4K', trend: '+45%' },
-    { tag: '#BuruhPurwakarta', count: '12.1K', trend: '+38%' },
-    { tag: '#PurwakartaTerkini', count: '9.8K', trend: '+22%' },
-    { tag: '#WanayasaLahanTani', count: '6.4K', trend: '+52%' },
-    { tag: '#KawasanIndustriBungursari', count: '8.7K', trend: '+30%' },
-  ];
+  // Filter Issues
+  const filteredIssues = issues.filter(iss => {
+    const matchQuery = 
+      iss.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      iss.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      iss.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      iss.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchCategory = categoryFilter === 'all' || iss.category === categoryFilter;
+    const matchLocation = locationFilter === 'all' || iss.location.toLowerCase().includes(locationFilter.toLowerCase());
+    return matchQuery && matchCategory && matchLocation;
+  });
 
+  // Filter Signals
   const filteredSignals = mockSignals.filter(sig => {
-    if (selectedPlatform !== 'all' && sig.platform !== selectedPlatform) return false;
-    if (selectedSentiment !== 'all' && sig.sentiment !== selectedSentiment) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const match = sig.content.toLowerCase().includes(q) || 
-                    sig.keywords.some(k => k.toLowerCase().includes(q)) ||
-                    sig.location_tag.toLowerCase().includes(q);
-      if (!match) return false;
-    }
-    return true;
+    const matchQuery = 
+      sig.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sig.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchLocation = locationFilter === 'all' || sig.location_tag.toLowerCase().includes(locationFilter.toLowerCase());
+    return matchQuery && matchLocation;
   });
 
-  const filteredNews = issues.filter(item => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return item.title.toLowerCase().includes(q) ||
-             item.description.toLowerCase().includes(q) ||
-             item.location.toLowerCase().includes(q) ||
-             item.category.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const categories = ['all', 'Agraria', 'Ketenagakerjaan', 'Lingkungan', 'Pendidikan', 'Pemerintahan', 'Keamanan', 'Ekonomi', 'Sosial'];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 border-b border-border pb-5">
-        <div>
+      {/* Toast Notification */}
+      {syncToast && (
+        <div className="fixed top-20 right-6 z-50 max-w-sm bg-stone-900 text-white p-4 rounded-card border border-stone-700 shadow-xl animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="text-xs font-bold">Sinkronisasi Selesai</div>
+              <div className="text-[11px] text-stone-300 leading-relaxed">{syncToast.msg}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HEADER WITH SYNC BUTTON */}
+      <div className="bg-surface rounded-card border border-border p-6 shadow-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Radio className="w-4 h-4 text-primary animate-pulse" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
+              Near Real-Time Intelligence
+            </span>
+          </div>
           <h1 className="text-xl sm:text-2xl font-bold text-ink-primary">
-            Pantauan Berita Real-Time & Sinyal Publik
+            Pusat Pantauan Berita & Isu Kebijakan
           </h1>
-          <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
-            Sistem agregasi informasi media massa daerah & nasional, deteksi sentimen, dan dinamika keresahan publik.
+          <p className="text-xs text-ink-secondary">
+            Aliran artikel berita terverifikasi, pengelompokan isu, dan sinyal percakapan publik.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {lastSyncedTime && (
-            <span className="text-[11px] font-mono text-ink-tertiary hidden sm:inline">
-              Sinkronisasi: {lastSyncedTime} WIB
-            </span>
-          )}
-
+        {/* Sync Trigger & Time */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="text-right text-[11px] font-mono text-ink-tertiary">
+            <div>Terakhir Sinkron: {lastSyncedTime ? `${lastSyncedTime} WIB` : '18:42 WIB'}</div>
+            <div className="text-emerald-700 font-sans font-medium">● Pipeline Aktif (Near Real-Time)</div>
+          </div>
           <button
-            onClick={handleSync}
+            onClick={handleManualSync}
             disabled={isSyncingNews}
-            className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-btn border transition-all ${
-              isSyncingNews
-                ? 'bg-muted text-ink-secondary border-border cursor-not-allowed'
-                : 'bg-primary text-white border-primary hover:bg-[#8F0D15] active:scale-95 shadow-subtle'
-            }`}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-btn bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingNews ? 'animate-spin' : ''}`} />
-            <span>{isSyncingNews ? 'Sedang Menarik Berita...' : 'Tarik Berita Real-Time'}</span>
+            <span>{isSyncingNews ? 'Menarik Berita...' : 'Tarik Berita'}</span>
           </button>
         </div>
       </div>
 
-      {/* Sync Status Banner */}
-      {syncStatusMsg && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-btn flex items-center justify-between gap-2 text-emerald-800 text-xs animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{syncStatusMsg}</span>
-          </div>
-          <span className="font-mono text-[11px] text-emerald-700">Live DB</span>
+      {/* DUAL MODE TOGGLE STRIP */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-2 rounded-card border border-border shadow-subtle">
+        {/* Toggle [ Berita ] [ Isu ] [ Sinyal Publik ] */}
+        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-btn w-full sm:w-auto">
+          <button
+            onClick={() => setActiveViewMode('articles')}
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded text-xs font-semibold transition-all ${
+              activeViewMode === 'articles'
+                ? 'bg-white text-ink-primary shadow-sm'
+                : 'text-ink-secondary hover:text-ink-primary'
+            }`}
+          >
+            Berita Terkini ({filteredArticles.length})
+          </button>
+          <button
+            onClick={() => setActiveViewMode('issues')}
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded text-xs font-semibold transition-all ${
+              activeViewMode === 'issues'
+                ? 'bg-white text-ink-primary shadow-sm'
+                : 'text-ink-secondary hover:text-ink-primary'
+            }`}
+          >
+            Isu Berkembang ({filteredIssues.length})
+          </button>
+          <button
+            onClick={() => setActiveViewMode('signals')}
+            className={`flex-1 sm:flex-initial px-4 py-1.5 rounded text-xs font-semibold transition-all ${
+              activeViewMode === 'signals'
+                ? 'bg-white text-ink-primary shadow-sm'
+                : 'text-ink-secondary hover:text-ink-primary'
+            }`}
+          >
+            Sinyal Publik ({filteredSignals.length})
+          </button>
         </div>
-      )}
 
-      {/* Mandatory Verification Principle Notice */}
-      <div className="p-4 bg-stone-50 border border-border rounded-card flex items-start gap-3 text-ink-primary shadow-subtle">
-        <Info className="w-4 h-4 text-ink-tertiary shrink-0 mt-0.5" />
-        <div className="space-y-1 text-xs">
-          <h4 className="font-semibold text-ink-primary">
-            Prinsip Etika Verifikasi Informasi:
-          </h4>
-          <p className="text-ink-secondary leading-relaxed">
-            Setiap berita dan sinyal publik yang ditarik oleh sistem AI Ruang Isu diklasifikasikan secara dialektis ke dalam <strong>Terkonfirmasi</strong>, <strong>Klaim</strong>, dan <strong>Perlu Verifikasi</strong>. Kader GMNI wajib memvalidasi data lapangan sebelum menyusun naskah advokasi kebijakan publik.
-          </p>
-        </div>
-      </div>
-
-      {/* Media & Platform Source Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {platforms.map(p => (
-          <div key={p.name} className="p-3.5 bg-surface rounded-card border border-border space-y-1 shadow-subtle">
-            <div className="text-xs font-semibold text-ink-primary">{p.name}</div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-xs text-ink-secondary">{p.count}</span>
-              <span className="text-[11px] font-mono font-semibold text-primary">{p.growth}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Tab Switcher: Berita Terkini vs Sinyal Publik */}
-      <div className="flex items-center gap-2 border-b border-border">
-        <button
-          onClick={() => setActiveTab('news')}
-          className={`px-4 py-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors ${
-            activeTab === 'news'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-ink-secondary hover:text-ink-primary'
-          }`}
-        >
-          <Newspaper className="w-4 h-4" />
-          <span>Berita & Isu Terpantau ({filteredNews.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('signals')}
-          className={`px-4 py-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors ${
-            activeTab === 'signals'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-ink-secondary hover:text-ink-primary'
-          }`}
-        >
-          <Radio className="w-4 h-4" />
-          <span>Sinyal Percakapan Warganet ({filteredSignals.length})</span>
-        </button>
-      </div>
-
-      {/* TAB 1: BERITA & ISU TERPANTAU REAL-TIME */}
-      {activeTab === 'news' && (
-        <div className="space-y-4">
-          
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-ink-tertiary absolute left-3.5 top-1/2 -translate-y-1/2" />
+        {/* SEARCH & FILTERS */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+            <Search className="w-3.5 h-3.5 text-ink-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
+              placeholder="Cari judul, kata kunci, lokus..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Cari judul berita, topik kebijakan, atau lokus wilayah..."
-              className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-muted/60 border border-border rounded-btn placeholder:text-ink-tertiary focus:outline-none focus:bg-surface focus:border-stone-400"
+              className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-border rounded text-xs focus:bg-white focus:outline-none focus:border-stone-400 font-sans"
             />
           </div>
 
-          {/* List of Issues */}
-          <div className="space-y-3">
-            {filteredNews.map(item => (
-              <div
-                key={item.id}
-                className="p-5 bg-surface rounded-card border border-border shadow-subtle hover:border-stone-400 transition-colors space-y-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <LocationBadge location={item.location} district={item.district} size="sm" />
-                    <CategoryBadge category={item.category} />
-                    <StatusBadge status={item.status} />
-                  </div>
-                  <span className="text-[11px] font-mono text-ink-tertiary">
-                    Diperbarui {formatDateIndo(item.last_updated_at)}
-                  </span>
-                </div>
+          <select
+            value={categoryFilter}
+            onChange={e => setCategoryFilter(e.target.value)}
+            className="px-2.5 py-1.5 bg-stone-50 border border-border rounded text-xs text-ink-primary focus:outline-none"
+          >
+            {categories.map(c => (
+              <option key={c} value={c}>
+                {c === 'all' ? 'Semua Bidang' : c}
+              </option>
+            ))}
+          </select>
 
-                <div className="space-y-1">
-                  <Link href={`/isu/${item.slug}`} className="group">
-                    <h3 className="text-base font-bold text-ink-primary group-hover:text-primary transition-colors">
-                      {item.title}
+          <select
+            value={locationFilter}
+            onChange={e => setLocationFilter(e.target.value)}
+            className="px-2.5 py-1.5 bg-stone-50 border border-border rounded text-xs text-ink-primary focus:outline-none"
+          >
+            <option value="all">Semua Wilayah</option>
+            <option value="purwakarta">Purwakarta</option>
+            <option value="jawa barat">Jawa Barat</option>
+            <option value="nasional">Nasional</option>
+          </select>
+        </div>
+      </div>
+
+      {/* VIEW 1: BERITA (ARTICLES) */}
+      {activeViewMode === 'articles' && (
+        <div className="space-y-3">
+          <div className="text-xs font-semibold text-ink-secondary flex items-center justify-between">
+            <span>Daftar Artikel Masuk & Status Pengelompokan Isu</span>
+            <span className="font-mono text-[11px]">{filteredArticles.length} artikel terdata</span>
+          </div>
+
+          {filteredArticles.length === 0 ? (
+            <div className="bg-surface rounded-card border border-border p-12 text-center space-y-3">
+              <FileText className="w-8 h-8 text-ink-tertiary mx-auto" />
+              <div className="text-sm font-semibold text-ink-primary">Belum ada artikel berita tersinkronisasi.</div>
+              <p className="text-xs text-ink-secondary max-w-sm mx-auto">
+                Klik tombol &quot;Tarik Berita&quot; di atas untuk menarik ratusan artikel dari Antara, Tempo, CNN, dan Republika.
+              </p>
+              <button
+                onClick={handleManualSync}
+                className="px-4 py-2 rounded-btn bg-stone-900 text-white text-xs font-semibold hover:bg-stone-800"
+              >
+                Tarik Berita Sekarang
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {filteredArticles.map(art => (
+                <div
+                  key={art.id}
+                  className="bg-surface rounded-card border border-border p-4 hover:border-stone-400 transition-colors flex flex-col justify-between space-y-3 shadow-subtle"
+                >
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-stone-100 font-semibold text-[10px] text-ink-primary border border-border">
+                          {art.source_name}
+                        </span>
+                        {art.category && <CategoryBadge category={art.category} />}
+                        {art.location && <LocationBadge location={art.location} size="sm" />}
+                      </div>
+                      <span className="text-[10px] font-mono text-ink-tertiary">
+                        {formatDateIndo(art.published_at)}
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm font-bold text-ink-primary leading-snug">
+                      <a
+                        href={art.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary transition-colors inline-flex items-baseline gap-1"
+                      >
+                        <span>{art.title}</span>
+                        <ExternalLink className="w-3 h-3 text-ink-tertiary shrink-0 inline" />
+                      </a>
+                    </h3>
+
+                    {art.summary && (
+                      <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
+                        {art.summary}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* LINK TO RELATED ISSUE */}
+                  <div className="pt-2 border-t border-border/80 flex items-center justify-between text-xs">
+                    <div className="text-[11px] truncate max-w-[240px] sm:max-w-xs">
+                      {art.issue_slug || art.issue_id ? (
+                        <div className="flex items-center gap-1.5 text-ink-secondary">
+                          <span className="text-ink-tertiary">Terkait Isu:</span>
+                          <Link
+                            href={`/isu/${art.issue_slug || art.issue_id}`}
+                            className="font-semibold text-primary hover:underline truncate"
+                          >
+                            {art.issue_title || 'Lihat Isu'}
+                          </Link>
+                        </div>
+                      ) : (
+                        <span className="text-stone-400 italic">Belum dikelompokkan ke isu</span>
+                      )}
+                    </div>
+
+                    {art.issue_slug && (
+                      <Link
+                        href={`/isu/${art.issue_slug}`}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-ink-primary hover:text-primary transition-colors shrink-0"
+                      >
+                        <span>Kajian Isu</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW 2: ISU BERKEMBANG */}
+      {activeViewMode === 'issues' && (
+        <div className="space-y-3">
+          <div className="text-xs font-semibold text-ink-secondary flex items-center justify-between">
+            <span>Daftar Isu Hasil Clustering & Evidensi Kebijakan</span>
+            <span className="font-mono text-[11px]">{filteredIssues.length} isu aktif</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {filteredIssues.map(issue => (
+              <div
+                key={issue.id}
+                className="bg-surface rounded-card border border-border p-4 hover:border-stone-400 transition-colors flex flex-col justify-between space-y-3 shadow-subtle"
+              >
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <LocationBadge location={issue.location} district={issue.district} size="sm" />
+                      <CategoryBadge category={issue.category} />
+                      <StatusBadge status={issue.status} />
+                    </div>
+                    <span className="text-[11px] font-mono text-ink-tertiary">
+                      {issue.sources_count} Sumber Terkait
+                    </span>
+                  </div>
+
+                  <Link href={`/isu/${issue.slug}`} className="group block">
+                    <h3 className="text-sm font-bold text-ink-primary group-hover:text-primary transition-colors line-clamp-2">
+                      {issue.title}
                     </h3>
                   </Link>
-                  <p className="text-xs text-ink-secondary leading-relaxed line-clamp-2">
-                    {item.description}
+
+                  <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
+                    {issue.description}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-border/80 text-xs">
-                  <div className="flex items-center gap-3 text-ink-tertiary text-[11px]">
-                    <span>{item.sources_count} Rujukan Media</span>
-                    <span>·</span>
-                    <span>Impact: <strong className="text-ink-primary">{item.impact_score}/100</strong></span>
-                    <span>·</span>
-                    <span>Evidence: <strong className="text-ink-primary">{item.evidence_score}/100</strong></span>
+                <div className="pt-2 border-t border-border/80 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3 text-[11px] font-mono">
+                    <span>Impact: <strong className="text-primary">{issue.impact_score}</strong></span>
+                    <span>Confidence: <strong>{issue.confidence_score || 80}</strong></span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/ai-analyst?issue=${item.id}`}
-                      className="px-3 py-1 bg-muted hover:bg-stone-200 text-ink-primary text-xs font-semibold rounded-btn transition-colors"
-                    >
-                      Analisis AI
-                    </Link>
-                    <Link
-                      href={`/isu/${item.slug}`}
-                      className="px-3 py-1 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors"
-                    >
-                      Detail Isu
-                    </Link>
-                  </div>
+                  <Link
+                    href={`/isu/${issue.slug}`}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    <span>Buka Isu</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
-
         </div>
       )}
 
-      {/* TAB 2: SINYAL PERCAKAPAN PUBLIK */}
-      {activeTab === 'signals' && (
-        <div className="space-y-6">
-          
-          {/* Trending Topics & Hashtags */}
-          <div className="bg-surface rounded-card border border-border p-5 space-y-3 shadow-subtle">
-            <div className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
-              Topik & Tagar Perbincangan Terkini
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {topHashtags.map(h => (
-                <div
-                  key={h.tag}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-btn bg-stone-50 border border-border text-xs text-ink-primary"
-                >
-                  <span className="font-semibold">{h.tag}</span>
-                  <span className="text-[11px] text-ink-tertiary">{h.count}</span>
-                  <span className="text-[10px] text-emerald-700 font-mono font-medium">{h.trend}</span>
-                </div>
-              ))}
-            </div>
+      {/* VIEW 3: SINYAL PUBLIK */}
+      {activeViewMode === 'signals' && (
+        <div className="space-y-3">
+          <div className="text-xs font-semibold text-ink-secondary flex items-center justify-between">
+            <span>Sinyal Percakapan Warganet & Suara Akar Rumput</span>
+            <span className="font-mono text-[11px]">{filteredSignals.length} sinyal</span>
           </div>
 
-          {/* Feed Filters & Search */}
-          <div className="bg-surface p-4 rounded-card border border-border space-y-3 shadow-subtle">
-            <div className="relative">
-              <Search className="w-4 h-4 text-ink-tertiary absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Cari konten sinyal publik, tagar, atau lokus wilayah..."
-                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-muted/60 border border-border rounded-btn placeholder:text-ink-tertiary focus:outline-none focus:bg-surface focus:border-stone-400"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-ink-tertiary uppercase">Platform:</span>
-                <select
-                  value={selectedPlatform}
-                  onChange={e => setSelectedPlatform(e.target.value)}
-                  className="p-1.5 bg-surface border border-border rounded-btn text-xs font-medium text-ink-primary"
-                >
-                  <option value="all">Semua Platform</option>
-                  <option value="Instagram">Instagram</option>
-                  <option value="TikTok">TikTok</option>
-                  <option value="X">X (Twitter)</option>
-                  <option value="YouTube">YouTube</option>
-                  <option value="Forum Warga">Forum Warga</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-ink-tertiary uppercase">Sentimen:</span>
-                <select
-                  value={selectedSentiment}
-                  onChange={e => setSelectedSentiment(e.target.value)}
-                  className="p-1.5 bg-surface border border-border rounded-btn text-xs font-medium text-ink-primary"
-                >
-                  <option value="all">Semua Sentimen</option>
-                  <option value="Negatif">Negatif (Keresahan)</option>
-                  <option value="Kritis">Kritis</option>
-                  <option value="Netral">Netral</option>
-                  <option value="Positif">Positif</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Signals Feed List */}
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredSignals.map(sig => (
               <div
                 key={sig.id}
-                className="p-5 bg-surface rounded-card border border-border shadow-subtle hover:border-stone-400 transition-colors space-y-3"
+                className="bg-surface rounded-card border border-border p-4 hover:border-stone-400 transition-colors flex flex-col justify-between space-y-3 shadow-subtle"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-ink-primary">{sig.platform}</span>
-                    <span className="text-ink-tertiary">·</span>
-                    <span className="text-ink-secondary">{sig.location_tag}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-stone-100 text-ink-secondary border border-border">
-                      Sentimen: {sig.sentiment}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-stone-100 font-semibold text-[10px] text-ink-primary border border-border">
+                        {sig.platform}
+                      </span>
+                      <LocationBadge location={sig.location_tag} size="sm" />
+                    </div>
+                    <span className="text-[10px] font-mono text-ink-tertiary">
+                      {formatDateIndo(sig.timestamp)}
                     </span>
                   </div>
-                  <span className="text-ink-tertiary text-[11px] font-mono">{sig.timestamp}</span>
-                </div>
 
-                <p className="text-xs sm:text-sm text-ink-primary leading-relaxed">
-                  {sig.content}
-                </p>
+                  <p className="text-xs text-ink-primary leading-relaxed">
+                    &ldquo;{sig.content}&rdquo;
+                  </p>
 
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {sig.keywords.map((kw, i) => (
-                    <span
-                      key={i}
-                      className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-100 text-ink-secondary border border-border"
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-border text-xs text-ink-secondary">
-                  <div className="flex items-center gap-4 text-[11px]">
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-3.5 h-3.5 text-ink-tertiary" />
-                      {sig.engagement.likes}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Share2 className="w-3.5 h-3.5 text-ink-tertiary" />
-                      {sig.engagement.shares}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MessageSquare className="w-3.5 h-3.5 text-ink-tertiary" />
-                      {sig.engagement.comments}
-                    </span>
+                  <div className="flex flex-wrap gap-1">
+                    {sig.keywords.map(k => (
+                      <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-ink-secondary border border-border">
+                        #{k}
+                      </span>
+                    ))}
                   </div>
+                </div>
+
+                <div className="pt-2 border-t border-border/80 flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-ink-secondary">
+                    Sentimen: <strong className="text-primary">{sig.sentiment}</strong>
+                  </span>
 
                   <Link
-                    href={`/isu${sig.issue_id ? `?id=${sig.issue_id}` : `?search=${encodeURIComponent(sig.keywords[0] || '')}`}`}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                    href={`/isu?search=${encodeURIComponent(sig.keywords[0] || '')}`}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
                   >
                     <span>Kaitkan ke Isu</span>
                     <ArrowRight className="w-3 h-3" />
@@ -385,7 +416,6 @@ export default function PantauanMedsosPage() {
               </div>
             ))}
           </div>
-
         </div>
       )}
 

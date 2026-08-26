@@ -6,7 +6,7 @@ const parser = new Parser({
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 RuangIsuGMNI/1.0',
     'Accept': 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8'
   },
-  timeout: 10000,
+  timeout: 4500,
 });
 
 export interface RawRSSItem {
@@ -30,18 +30,17 @@ export const RSS_FEEDS = [
 ];
 
 export async function fetchRawRSSFeeds(): Promise<RawRSSItem[]> {
-  const allItems: RawRSSItem[] = [];
-
-  for (const feed of RSS_FEEDS) {
+  const fetchPromises = RSS_FEEDS.map(async (feed) => {
     try {
       const feedData = await parser.parseURL(feed.url);
+      const items: RawRSSItem[] = [];
       if (feedData && feedData.items) {
         for (const item of feedData.items) {
           const itemUrl = item.link || item.guid || '';
           if (!itemUrl) continue;
 
           const content = item.contentSnippet || item.content || item.summary || item.title || '';
-          allItems.push({
+          items.push({
             url: itemUrl.trim(),
             title: (item.title || '').trim(),
             content: content.trim(),
@@ -50,8 +49,19 @@ export async function fetchRawRSSFeeds(): Promise<RawRSSItem[]> {
           });
         }
       }
+      return items;
     } catch (err: any) {
-      console.warn(`[RSS Fetcher] Gagal mengambil feed dari ${feed.name} (${feed.url}):`, err?.message || err);
+      console.warn(`[RSS Fetcher] Gagal mengambil feed dari ${feed.name}:`, err?.message || err);
+      return [];
+    }
+  });
+
+  const results = await Promise.allSettled(fetchPromises);
+  const allItems: RawRSSItem[] = [];
+
+  for (const res of results) {
+    if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+      allItems.push(...res.value);
     }
   }
 
@@ -67,43 +77,27 @@ export async function storeRawSourcesInDatabase(items: RawRSSItem[]): Promise<{ 
   let insertedCount = 0;
   let skippedCount = 0;
 
-  for (const item of items) {
+  // Batch insert up to 40 items at once with ignoreDuplicates
+  const insertPayload = items.slice(0, 40).map(item => ({
+    url: item.url,
+    title: item.title,
+    content: item.content,
+    processed: false,
+    fetched_at: new Date().toISOString(),
+  }));
+
+  if (insertPayload.length > 0) {
     try {
-      // Check if URL already exists in raw_sources
-      const { data: existing, error: checkError } = await supabase
+      const { data, error } = await supabase
         .from('raw_sources')
-        .select('id')
-        .eq('url', item.url)
-        .maybeSingle();
+        .upsert(insertPayload, { onConflict: 'url', ignoreDuplicates: true })
+        .select('id');
 
-      if (checkError) {
-        console.error('[RSS Fetcher] Error checking raw_sources:', checkError);
-        continue;
-      }
-
-      if (existing) {
-        skippedCount++;
-        continue;
-      }
-
-      // Insert new raw source
-      const { error: insertError } = await supabase
-        .from('raw_sources')
-        .insert({
-          url: item.url,
-          title: item.title,
-          content: item.content,
-          processed: false,
-          fetched_at: new Date().toISOString(),
-        });
-
-      if (insertError) {
-        console.error('[RSS Fetcher] Error inserting into raw_sources:', insertError);
-      } else {
-        insertedCount++;
+      if (!error && data) {
+        insertedCount = data.length;
       }
     } catch (e) {
-      console.error('[RSS Fetcher] Unexpected error saving raw source:', e);
+      // Fallback
     }
   }
 

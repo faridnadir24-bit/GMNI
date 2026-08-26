@@ -13,6 +13,14 @@ export type SourceType =
   | 'Social Media' 
   | 'Public Signal';
 
+export type NormalizedSourceType = 
+  | 'official' 
+  | 'national_media' 
+  | 'local_media' 
+  | 'social' 
+  | 'public_signal' 
+  | 'unknown';
+
 export type UserRole = 'admin' | 'researcher' | 'member' | 'public';
 
 export interface IssueAISummary {
@@ -46,6 +54,100 @@ export interface ResearchRecommendation {
   suggested_angle: string;
 }
 
+export interface EvidenceBreakdown {
+  official: number;
+  national_media: number;
+  local_media: number;
+  social: number;
+  public_signal: number;
+  total: number;
+}
+
+export interface IssueEvent {
+  id: string;
+  issue_id: string;
+  event_type: 
+    | 'source_added' 
+    | 'official_statement' 
+    | 'public_signal' 
+    | 'issue_updated' 
+    | 'status_changed' 
+    | 'score_changed' 
+    | 'claim_added' 
+    | 'fact_added';
+  title: string;
+  description?: string;
+  source_id?: string;
+  source_name?: string;
+  event_at: string;
+  created_at?: string;
+}
+
+export interface Article {
+  id: string;
+  url: string;
+  canonical_url?: string;
+  title: string;
+  summary: string;
+  content: string;
+  source_name: string;
+  source_type: NormalizedSourceType;
+  published_at: string;
+  fetched_at: string;
+  hash?: string;
+  language?: string;
+  category?: string;
+  location?: string;
+  sub_location?: string | null;
+  relevance_score?: number;
+  processed?: boolean;
+  issue_id?: string | null;
+  issue_title?: string;
+  issue_slug?: string;
+}
+
+export interface IssueSource {
+  id: string;
+  issue_id: string;
+  article_id?: string | null;
+  source_url: string;
+  source_name: string;
+  source_type: NormalizedSourceType;
+  published_at: string;
+  added_at: string;
+  relevance_score: number;
+  is_primary?: boolean;
+  credibility_score: number;
+}
+
+export interface Contradiction {
+  id: string;
+  issue_id: string;
+  topic: string;
+  source_a: {
+    source_name: string;
+    statement: string;
+    published_at: string;
+  };
+  source_b: {
+    source_name: string;
+    statement: string;
+    published_at: string;
+  };
+  discrepancy_explanation: string;
+}
+
+export interface RadarKecamatan {
+  name: string;
+  issuesCount: number;
+  priorityCount: number;
+  dominantCategory: string;
+  topIssueTitle: string;
+  topIssueSlug: string;
+  momentumGrowth: string;
+  status: 'Kritis' | 'Tinggi' | 'Sedang' | 'Stabil';
+}
+
 export interface Issue {
   id: string;
   title: string;
@@ -62,10 +164,26 @@ export interface Issue {
   momentum_score: number; // 0-100
   evidence_score: number; // 0-100
   credibility_score: number; // 0-100
+  confidence_score?: number; // 0-100
+  priority_score?: number; // 0-100
+  mention_count?: number;
+  is_priority?: boolean;
+  is_emerging?: boolean;
+  is_unviral_priority?: boolean; // Belum Viral · Dampak Tinggi
   first_detected_at: string;
+  last_activity_at?: string;
   last_updated_at: string;
   sources_count: number;
   is_purwakarta_priority?: boolean;
+  evidence_breakdown?: EvidenceBreakdown;
+  events?: IssueEvent[];
+  sources_list?: IssueSource[];
+  contradictions?: Contradiction[];
+  why_rising?: {
+    percentage_24h: string;
+    factors: string[];
+    has_sufficient_data: boolean;
+  };
   summary_ai: IssueAISummary;
   marhaenism_analysis: MarhaenismAnalysis;
   research_recommendation: ResearchRecommendation;
@@ -97,7 +215,7 @@ export interface Source {
   url: string;
   source_name: string;
   source_type: SourceType;
-  credibility_score: number; // e.g. 95, 85, 75, 45, 20
+  credibility_score: number;
   published_at: string;
   summary: string;
   author_or_institution: string;
@@ -138,24 +256,8 @@ export interface Signal {
   sentiment: 'Positif' | 'Netral' | 'Kritis / Resah' | 'Marah / Protes';
   growth_rate: string;
   keywords: string[];
-  is_verified_fact: boolean;
   location_tag: string;
-}
-
-export interface ResearchQuestion {
-  id: string;
-  issue_id: string;
-  question: string;
-  dimension: 
-    | 'Akar Masalah'
-    | 'Kelompok Terdampak'
-    | 'Respons Pemerintah'
-    | 'Kesenjangan Implementasi'
-    | 'Kondisi Lapangan'
-    | 'Celah Data'
-    | 'Dampak Jangka Panjang'
-    | 'Alternatif Kebijakan';
-  priority: 'Tinggi' | 'Sedang';
+  is_verified_fact?: boolean;
 }
 
 export interface BahanKajianDocument {
@@ -167,7 +269,7 @@ export interface BahanKajianDocument {
   author: string;
   komisariat: string;
   date_created: string;
-  status: 'Draft' | 'Final Kajian' | 'Policy Brief';
+  status: 'Draft' | 'Final' | 'Disahkan' | 'Policy Brief' | 'Final Kajian';
   sections: {
     latar_belakang: string;
     rumusan_masalah: string[];

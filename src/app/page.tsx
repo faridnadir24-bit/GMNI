@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import StatCards from '@/components/dashboard/StatCards';
 import PriorityBoard from '@/components/dashboard/PriorityBoard';
+import UnviralPrioritySection from '@/components/dashboard/UnviralPrioritySection';
 import LocationBadge from '@/components/ui/LocationBadge';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -156,6 +157,11 @@ export default function LandingPage() {
       {/* DASHBOARD SUMMARY STRIP */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <StatCards />
+      </section>
+
+      {/* ISU BELUM VIRAL · DAMPAK TINGGI */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <UnviralPrioritySection issues={issues} />
       </section>
 
       {/* ISSUE PRIORITY BOARD */}

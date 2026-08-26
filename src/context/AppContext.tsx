@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Issue, UserRole, BahanKajianDocument, Claim, Source } from '@/types';
+import { Issue, UserRole, BahanKajianDocument, Claim, Source, Article } from '@/types';
 import { mockIssues } from '@/data/mockIssues';
 import { mockClaims } from '@/data/mockClaims';
 import { mockSources } from '@/data/mockSources';
@@ -15,10 +15,19 @@ interface SyncResult {
   count?: number;
 }
 
+export interface SyncStatusInfo {
+  status: string;
+  last_sync_at: string | null;
+  active_feeds: string;
+  total_articles: number;
+  total_issues: number;
+}
+
 interface AppContextType {
   role: UserRole;
   setRole: (role: UserRole) => void;
   issues: Issue[];
+  articles: Article[];
   addIssue: (issue: Issue) => void;
   claims: Claim[];
   addClaim: (claim: Claim) => void;
@@ -35,6 +44,7 @@ interface AppContextType {
   isLoadingDb: boolean;
   isSyncingNews: boolean;
   lastSyncedTime: string | null;
+  syncStatus: SyncStatusInfo | null;
   refreshDbData: () => Promise<void>;
   syncLiveNews: () => Promise<SyncResult>;
   isRealData: boolean;
@@ -45,6 +55,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('researcher');
   const [issues, setIssues] = useState<Issue[]>(mockIssues);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [claims, setClaims] = useState<Claim[]>(mockClaims);
   const [sources, setSources] = useState<Source[]>(mockSources);
   const [kajianDocs, setKajianDocs] = useState<BahanKajianDocument[]>(mockKajianDocs);
@@ -54,6 +65,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingDb, setIsLoadingDb] = useState(false);
   const [isSyncingNews, setIsSyncingNews] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatusInfo | null>(null);
   const [isRealData, setIsRealData] = useState(false);
 
   // Fetch real data from Supabase / API
@@ -61,29 +73,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsLoadingDb(true);
 
     try {
-      // 1. Coba ambil dari /api/issues internal server
-      const apiRes = await fetch('/api/issues', { cache: 'no-store' });
-      if (apiRes.ok) {
-        const json = await apiRes.json();
+      // 1. Fetch Issues
+      const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
+      if (issuesRes.ok) {
+        const json = await issuesRes.json();
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const rows = json.data as SupabaseIssueRow[];
-          const mappedIssues = rows.map(mapSupabaseRowToIssue);
-          const mappedClaims = rows.flatMap(extractClaimsFromRow);
-          const mappedSources = rows.flatMap(extractSourcesFromRow);
-
-          setIssues(mappedIssues);
-          setClaims(mappedClaims.length > 0 ? mappedClaims : mockClaims);
-          setSources(mappedSources.length > 0 ? mappedSources : mockSources);
+          setIssues(json.data);
           setIsRealData(true);
-          setIsLoadingDb(false);
-          return;
+        }
+      }
+
+      // 2. Fetch Articles
+      const artRes = await fetch('/api/articles?limit=40', { cache: 'no-store' });
+      if (artRes.ok) {
+        const artJson = await artRes.json();
+        if (artJson.success && Array.isArray(artJson.data)) {
+          setArticles(artJson.data);
+        }
+      }
+
+      // 3. Fetch Sync Status
+      const statusRes = await fetch('/api/sync-status', { cache: 'no-store' });
+      if (statusRes.ok) {
+        const statusJson = await statusRes.json();
+        if (statusJson.success && statusJson.data) {
+          setSyncStatus(statusJson.data);
+          if (statusJson.data.last_sync_at) {
+            setLastSyncedTime(new Date(statusJson.data.last_sync_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+          }
         }
       }
     } catch (e) {
       console.warn('[AppContext] API route fetch fallback to direct Supabase client');
     }
 
-    // 2. Direct Supabase Client fallback
+    // Direct Supabase Client fallback if API route fails
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -129,13 +153,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return {
           success: true,
           message: data.message || 'Sinkronisasi berita real-time berhasil.',
-          count: data.summary?.newOrUpdatedIssues || 0,
+          count: data.data?.summary?.newIssuesCreated || 0,
         };
       } else {
         setIsSyncingNews(false);
         return {
           success: false,
-          message: data.message || 'Gagal melakukan sinkronisasi berita.',
+          message: data.error || data.message || 'Gagal melakukan sinkronisasi berita.',
         };
       }
     } catch (err: any) {
@@ -150,12 +174,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refreshDbData();
 
-    // Background auto-refresh every 60 seconds
+    // Supabase Realtime Subscription (if supported)
+    let channel: any = null;
+    if (isSupabaseConfigured()) {
+      try {
+        channel = supabase
+          .channel('public:issues_realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, () => {
+            refreshDbData();
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('[AppContext] Realtime subscription fallback to polling');
+      }
+    }
+
+    // Near real-time periodic background sync (every 60s)
     const interval = setInterval(() => {
       refreshDbData();
     }, 60000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [refreshDbData]);
 
   useEffect(() => {
@@ -197,6 +239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         role,
         setRole,
         issues,
+        articles,
         addIssue,
         claims,
         addClaim,
@@ -213,6 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isLoadingDb,
         isSyncingNews,
         lastSyncedTime,
+        syncStatus,
         refreshDbData,
         syncLiveNews,
         isRealData,

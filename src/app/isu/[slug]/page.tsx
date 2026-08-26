@@ -10,7 +10,12 @@ import {
   BookmarkCheck, 
   ArrowLeft,
   Share2,
-  Check
+  Check,
+  TrendingUp,
+  AlertTriangle,
+  Scale,
+  ShieldCheck,
+  Layers
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { formatDateIndo } from '@/lib/utils';
@@ -21,6 +26,8 @@ import ScoreIndicator from '@/components/ui/ScoreIndicator';
 
 import FactVsClaim from '@/components/issue/FactVsClaim';
 import SourcePanel from '@/components/issue/SourcePanel';
+import EvidenceLocker from '@/components/issue/EvidenceLocker';
+import IssueEventsTimeline from '@/components/issue/IssueEventsTimeline';
 import TimelineView from '@/components/issue/TimelineView';
 import MomentumChart from '@/components/issue/MomentumChart';
 import ActorMap from '@/components/issue/ActorMap';
@@ -50,7 +57,7 @@ export default function IssueDetailPage() {
   const issueClaims = claims.filter(c => c.issue_id === issue.id);
   const issueSources = sources.filter(s => s.issue_id === issue.id);
   const issueActors = mockActors.filter(a => a.issue_id === issue.id);
-  const issueTimeline = mockTimelineEvents.filter(t => t.issue_id === issue.id);
+  const issueTimeline = issue.events || mockTimelineEvents.filter(t => t.issue_id === issue.id);
   const isSaved = savedIssueIds.includes(issue.id);
 
   const handleOpenKajian = () => {
@@ -97,12 +104,13 @@ export default function IssueDetailPage() {
             'Menyerahkan naskah policy paper kepada DPRD dan instansi terkait.',
             'Membuka forum konsolidasi kader dan aliansi masyarakat terdampak.'
           ],
-          daftar_pustaka: [
-            { title: `Dokumen Terkait ${issue.title}`, source: 'Arsip Riset GMNI Wastukancana', year: '2026' }
-          ]
+          daftar_pustaka: issueSources.map(s => ({
+            title: s.title,
+            source: s.source_name,
+            year: '2026'
+          }))
         }
       };
-      addKajianDoc(newDoc);
       setActiveKajianDoc(newDoc);
     }
     setIsKajianModalOpen(true);
@@ -117,22 +125,22 @@ export default function IssueDetailPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
-      {/* Top Back Navigation */}
-      <div className="flex items-center justify-between">
+      {/* TOP BREADCRUMB & ACTIONS */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <Link
           href="/isu"
-          className="inline-flex items-center gap-1.5 text-xs text-ink-secondary hover:text-ink-primary transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-secondary hover:text-ink-primary transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Kembali ke Direktori Isu</span>
+          <span>Kembali ke Daftar Isu</span>
         </Link>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopyLink}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-muted text-ink-secondary text-xs rounded-btn border border-border transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn bg-surface hover:bg-stone-100 text-ink-secondary hover:text-ink-primary border border-border text-xs font-medium transition-colors"
           >
             {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
             <span>{copiedLink ? 'Tersalin' : 'Bagikan'}</span>
@@ -140,119 +148,218 @@ export default function IssueDetailPage() {
 
           <button
             onClick={() => toggleSaveIssue(issue.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-btn border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn border text-xs font-medium transition-colors ${
               isSaved
-                ? 'bg-stone-100 border-primary text-primary font-medium'
-                : 'bg-surface hover:bg-muted text-ink-secondary border-border'
+                ? 'bg-stone-900 text-white border-stone-900'
+                : 'bg-surface hover:bg-stone-100 text-ink-secondary hover:text-ink-primary border border-border'
             }`}
           >
             {isSaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
-            <span>{isSaved ? 'Tersimpan' : 'Simpan'}</span>
+            <span>{isSaved ? 'Tersimpan di Dokumen' : 'Simpan Isu'}</span>
+          </button>
+
+          <button
+            onClick={handleOpenKajian}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-btn bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-sm transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Naskah Bahan Kajian</span>
           </button>
         </div>
       </div>
 
-      {/* EDITORIAL HEADER */}
-      <header className="space-y-4 border-b border-border pb-8">
-        
-        {/* Category & Status Badges */}
+      {/* ISSUE HERO / HEADER */}
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <CategoryBadge category={issue.category} />
           <LocationBadge location={issue.location} district={issue.district} />
+          <CategoryBadge category={issue.category} />
           <StatusBadge status={issue.status} />
-          {issue.priority_level === 'Tinggi' && (
-            <span className="text-[11px] font-semibold text-primary">
-              · Prioritas Kajian
+          {issue.is_unviral_priority && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+              Belum Viral · Dampak Tinggi
             </span>
           )}
         </div>
 
-        {/* Title */}
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-ink-primary tracking-tight leading-tight">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-ink-primary tracking-tight leading-tight">
           {issue.title}
         </h1>
 
-        {/* Lead Summary */}
-        <p className="text-sm sm:text-base text-ink-secondary leading-relaxed">
+        <p className="text-sm sm:text-base text-ink-secondary leading-relaxed max-w-4xl">
           {issue.description}
         </p>
 
-        {/* Metadata & Scores Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border/80">
-          <ScoreIndicator label="Impact Score" score={issue.impact_score} accent />
-          <ScoreIndicator label="Evidence Score" score={issue.evidence_score} />
-          <ScoreIndicator label="Momentum" score={issue.momentum_score} />
-          
-          <div className="space-y-1 text-xs">
-            <span className="text-ink-secondary text-[11px]">Validasi Sumber</span>
-            <div className="text-xs font-semibold text-ink-primary">
-              {issue.sources_count} Rujukan Terdaftar
-            </div>
-            <div className="text-[10px] text-ink-tertiary">
-              Diperbarui otomatis: {formatDateIndo(issue.last_updated_at)}
-            </div>
+        {/* METADATA STRIP */}
+        <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-ink-tertiary pt-2 border-t border-border/80">
+          <div>Terdeteksi: {formatDateIndo(issue.first_detected_at)}</div>
+          <div>·</div>
+          <div>Pembaruan: {formatDateIndo(issue.last_updated_at)}</div>
+          <div>·</div>
+          <div>Jumlah Rujukan: {issue.sources_count} Sumber</div>
+          <div>·</div>
+          <div className="text-emerald-700 font-sans font-medium">● Near Real-Time Synced</div>
+        </div>
+      </div>
+
+      {/* METRIC SCORES CARDS & CONFIDENCE BREAKDOWN */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-surface rounded-card border border-border p-4 shadow-subtle space-y-1">
+          <span className="text-[10px] uppercase font-bold text-ink-tertiary">Impact Score</span>
+          <div className="text-2xl font-bold font-mono text-primary">{issue.impact_score}/100</div>
+          <p className="text-[10px] text-ink-tertiary">Derajat kerentanan warga</p>
+        </div>
+
+        <div className="bg-surface rounded-card border border-border p-4 shadow-subtle space-y-1">
+          <span className="text-[10px] uppercase font-bold text-ink-tertiary">Evidence Score</span>
+          <div className="text-2xl font-bold font-mono text-ink-primary">{issue.evidence_score}/100</div>
+          <p className="text-[10px] text-ink-tertiary">Kekuatan data rujukan</p>
+        </div>
+
+        <div className="bg-surface rounded-card border border-border p-4 shadow-subtle space-y-1">
+          <span className="text-[10px] uppercase font-bold text-ink-tertiary">Confidence Score</span>
+          <div className="text-2xl font-bold font-mono text-ink-primary">{issue.confidence_score || 80}/100</div>
+          <p className="text-[10px] text-ink-tertiary">Indikator konsistensi sumber</p>
+        </div>
+
+        <div className="bg-surface rounded-card border border-border p-4 shadow-subtle space-y-1">
+          <span className="text-[10px] uppercase font-bold text-ink-tertiary">Priority Score</span>
+          <div className="text-2xl font-bold font-mono text-ink-primary">{issue.priority_score || 85}/100</div>
+          <p className="text-[10px] text-ink-tertiary">Urgensi advokasi GMNI</p>
+        </div>
+      </div>
+
+      {/* MODULE: MENGAPA ISU INI MENINGKAT? */}
+      {issue.why_rising && (
+        <div className="bg-surface rounded-card border border-border p-5 space-y-3 shadow-subtle">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-ink-primary">
+              Mengapa Isu Ini Meningkat?
+            </h3>
+            <span className="text-xs font-mono font-bold text-primary">
+              ({issue.why_rising.percentage_24h} dalam 24 jam terakhir)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+            {issue.why_rising.factors.map((factor, idx) => (
+              <div
+                key={idx}
+                className="p-3 bg-stone-50 rounded border border-border/80 text-xs text-ink-primary font-medium"
+              >
+                {factor}
+              </div>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* Primary Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3 pt-3">
-          <Link
-            href={`/ai-analyst?issue=${issue.id}`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-stone-300" />
-            <span>Buka di AI Issue Analyst</span>
-          </Link>
+      {/* CONTRADICTION WARNING (IF ANY) */}
+      {issue.contradictions && issue.contradictions.length > 0 && (
+        <div className="bg-amber-50/70 border border-amber-200 rounded-card p-5 space-y-3">
+          <div className="flex items-center gap-2 text-amber-900">
+            <AlertTriangle className="w-4 h-4 text-amber-700" />
+            <h3 className="text-sm font-bold uppercase tracking-wider">
+              Catatan Discrepancy & Kontradiksi Data Antar-Sumber
+            </h3>
+          </div>
 
-          <button
-            onClick={handleOpenKajian}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-surface hover:bg-muted text-ink-primary text-xs font-semibold rounded-btn border border-border transition-colors"
-          >
-            <FileText className="w-3.5 h-3.5 text-ink-secondary" />
-            <span>Jadikan Bahan Kajian Siap Cetak</span>
-          </button>
+          <div className="space-y-2">
+            {issue.contradictions.map(contra => (
+              <div key={contra.id} className="p-3 bg-white rounded border border-amber-200/80 text-xs space-y-1.5">
+                <div className="font-semibold text-ink-primary">{contra.topic}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div className="p-2 bg-stone-50 rounded border border-border">
+                    <span className="font-bold block text-ink-secondary">{contra.source_a.source_name}:</span>
+                    &ldquo;{contra.source_a.statement}&rdquo;
+                  </div>
+                  <div className="p-2 bg-stone-50 rounded border border-border">
+                    <span className="font-bold block text-ink-secondary">{contra.source_b.source_name}:</span>
+                    &ldquo;{contra.source_b.statement}&rdquo;
+                  </div>
+                </div>
+                <p className="text-[11px] text-amber-900 pt-1 italic">
+                  Analisis AI: {contra.discrepancy_explanation}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MAIN TWO-COLUMN CONTENT */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* LEFT COLUMN: EVIDENCE & FACT ANALYSIS (8 Cols) */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* EVIDENCE LOCKER */}
+          <EvidenceLocker
+            sources={issueSources}
+            evidenceBreakdown={issue.evidence_breakdown}
+            confidenceScore={issue.confidence_score}
+          />
+
+          {/* ACTIVITY TIMELINE (PERKEMBANGAN ISU) */}
+          <IssueEventsTimeline events={issue.events} />
+
+          {/* FACT VS CLAIM */}
+          <FactVsClaim issueId={issue.id} claims={issueClaims} />
+
+          {/* AI SUMMARIZER */}
+          <AISummarizer summary={issue.summary_ai} />
+
+          {/* MARHAENISM FRAMEWORK */}
+          <MarhaenismAnalysis analysis={issue.marhaenism_analysis} />
+
+          {/* ACTOR MAP */}
+          <ActorMap actors={issueActors} />
         </div>
 
-      </header>
+        {/* RIGHT COLUMN: RECOMMENDATIONS & CHARTS (4 Cols) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* RESEARCH RECOMMENDATION */}
+          <AIRecommender recommendation={issue.research_recommendation} onProceedToKajian={handleOpenKajian} />
 
-      {/* VERTICAL EDITORIAL CONTENT SECTIONS */}
-      <main className="space-y-10">
-        
-        {/* Section 1: Executive Summary & Facts Structure */}
-        <AISummarizer summary={issue.summary_ai} />
+          {/* MOMENTUM TREND */}
+          <MomentumChart trend={issue.momentum_trend} />
 
-        {/* Section 2: Fact vs Claim System */}
-        <FactVsClaim issueId={issue.id} claims={issueClaims} />
+          {/* ACTION BUTTON TO AI ANALYST WORKBENCH */}
+          <div className="bg-stone-900 text-white rounded-card p-6 space-y-4 shadow-subtle">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-stone-300">
+                  AI Policy Workbench
+                </span>
+              </div>
+              <h3 className="text-base font-bold">
+                Bedah Isu di AI Analyst
+              </h3>
+              <p className="text-xs text-stone-400 leading-relaxed">
+                Jalankan 8 instrumen analisis kritis dialektis, uji kontradiksi, dan susun draf naskah kebijakan.
+              </p>
+            </div>
 
-        {/* Section 3: Sources & Credibility Index */}
-        <SourcePanel issueId={issue.id} sources={issueSources} />
+            <Link
+              href={`/ai-analyst?issue=${issue.id}`}
+              className="w-full py-2.5 px-4 rounded-btn bg-primary hover:bg-primary-hover text-white text-xs font-semibold inline-flex items-center justify-center gap-2 transition-colors shadow-sm"
+            >
+              <span>Buka AI Analyst Workbench</span>
+            </Link>
+          </div>
 
-        {/* Section 4: Timeline & Chronology */}
-        <TimelineView events={issueTimeline} />
+        </div>
 
-        {/* Section 5: Momentum Trend */}
-        <MomentumChart trend={issue.momentum_trend} />
+      </div>
 
-        {/* Section 6: Actor Map */}
-        <ActorMap actors={issueActors} />
-
-        {/* Section 7: Marhaenism Ideological Framework */}
-        <MarhaenismAnalysis analysis={issue.marhaenism_analysis} />
-
-        {/* Section 8: Research Recommendation */}
-        <AIRecommender
-          recommendation={issue.research_recommendation}
-          onProceedToKajian={handleOpenKajian}
-        />
-
-      </main>
-
-      {/* Bahan Kajian Document Modal */}
+      {/* KAJIAN DOCUMENT MODAL */}
       {activeKajianDoc && (
         <KajianDocModal
-          doc={activeKajianDoc}
           isOpen={isKajianModalOpen}
           onClose={() => setIsKajianModalOpen(false)}
+          doc={activeKajianDoc}
         />
       )}
 

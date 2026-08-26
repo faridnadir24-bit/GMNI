@@ -1,25 +1,63 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/services/supabase';
+import { mapSupabaseRowToIssue, SupabaseIssueRow } from '@/lib/services/issue-adapter';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ success: false, data: [] }, { status: 200 });
+    return NextResponse.json({
+      success: true,
+      data: [],
+      error: null,
+      meta: { count: 0, status: 'unconfigured' },
+    });
   }
 
+  const { searchParams } = new URL(request.url);
+  const location = searchParams.get('location');
+  const category = searchParams.get('category');
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
+
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('issues')
       .select('*')
-      .order('detected_at', { ascending: false });
+      .order('detected_at', { ascending: false })
+      .limit(limit);
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (location && location !== 'all') {
+      query = query.ilike('location', `%${location}%`);
+    }
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
     }
 
-    return NextResponse.json({ success: true, count: data?.length || 0, data: data || [] });
+    const { data, error } = await query;
+
+    if (error) {
+      return NextResponse.json({
+        success: false,
+        data: [],
+        error: error.message,
+        meta: { count: 0 },
+      }, { status: 500 });
+    }
+
+    const mapped = (data as SupabaseIssueRow[] || []).map(mapSupabaseRowToIssue);
+
+    return NextResponse.json({
+      success: true,
+      data: mapped,
+      error: null,
+      meta: { count: mapped.length, timestamp: new Date().toISOString() },
+    });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err?.message }, { status: 500 });
+    return NextResponse.json({
+      success: false,
+      data: [],
+      error: err?.message || 'Gagal memuat isu dari basis data',
+      meta: { count: 0 },
+    }, { status: 500 });
   }
 }

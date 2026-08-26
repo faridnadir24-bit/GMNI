@@ -50,7 +50,7 @@ function AIAnalystContent() {
   const handleRunAction = (actionKey: string) => {
     setIsLoading(true);
     setTimeout(() => {
-      const res = runAIAnalysis(selectedIssueId, actionKey);
+      const res = runAIAnalysis(selectedIssueId, actionKey, selectedIssue, issueSources, issueClaims);
       setAnalysisResult(res);
       setIsLoading(false);
     }, 150);

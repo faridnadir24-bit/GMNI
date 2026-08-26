@@ -1,11 +1,12 @@
 -- =========================================================
--- RUANG ISU GMNI — Master Supabase Schema
+-- RUANG ISU GMNI — Schema Migration V2
 -- Core Architecture: BERITA ≠ ISU (Articles, Clustering, Evidence, Events)
 -- =========================================================
 
+-- Enable uuid-ossp extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. ENHANCED ISSUES TABLE
+-- 1. ENHANCE ISSUES TABLE
 CREATE TABLE IF NOT EXISTS issues (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   slug TEXT UNIQUE NOT NULL,
@@ -40,7 +41,25 @@ CREATE TABLE IF NOT EXISTS issues (
   actor_map JSONB
 );
 
--- 2. NORMALIZED ARTICLES TABLE (RAW ARTICLE -> NORMALIZATION -> HASH -> ARTICLE)
+-- Alter table in case issues table already exists from V1
+DO $$ 
+BEGIN
+  BEGIN
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS confidence_score INT CHECK (confidence_score >= 0 AND confidence_score <= 100) DEFAULT 75;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS priority_score INT CHECK (priority_score >= 0 AND priority_score <= 100) DEFAULT 80;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS urgency_score INT CHECK (urgency_score >= 0 AND urgency_score <= 100) DEFAULT 75;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS mention_count INT DEFAULT 1;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS is_priority BOOLEAN DEFAULT FALSE;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS is_emerging BOOLEAN DEFAULT TRUE;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS first_detected_at TIMESTAMP DEFAULT NOW();
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMP DEFAULT NOW();
+  EXCEPTION
+    WHEN duplicate_column THEN RAISE NOTICE 'Columns already exist';
+  END;
+END $$;
+
+-- 2. NORMALIZED ARTICLES TABLE
 CREATE TABLE IF NOT EXISTS articles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   url TEXT UNIQUE NOT NULL,
@@ -49,7 +68,7 @@ CREATE TABLE IF NOT EXISTS articles (
   summary TEXT,
   content TEXT,
   source_name TEXT NOT NULL,
-  source_type TEXT DEFAULT 'national_media',
+  source_type TEXT DEFAULT 'national_media', -- 'official' | 'national_media' | 'local_media' | 'social' | 'unknown'
   published_at TIMESTAMP,
   fetched_at TIMESTAMP DEFAULT NOW(),
   hash TEXT,
@@ -64,7 +83,7 @@ CREATE TABLE IF NOT EXISTS articles (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- 3. ISSUE-SOURCES JUNCTION TABLE (1 Issue -> Many Sources)
+-- 3. ISSUE-SOURCES JUNCTION TABLE (1 Issue -> Many Sources; Article -> Issue)
 CREATE TABLE IF NOT EXISTS issue_sources (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
@@ -85,7 +104,7 @@ CREATE TABLE IF NOT EXISTS issue_sources (
 CREATE TABLE IF NOT EXISTS issue_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL,
+  event_type TEXT NOT NULL, -- 'source_added' | 'official_statement' | 'public_signal' | 'issue_updated' | 'status_changed' | 'score_changed' | 'claim_added' | 'fact_added'
   title TEXT NOT NULL,
   description TEXT,
   source_id UUID,
@@ -94,7 +113,7 @@ CREATE TABLE IF NOT EXISTS issue_events (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- 5. RAW INGESTION LOG TABLE
+-- 5. RAW INGESTION LOG TABLE (Preserved for compatibility)
 CREATE TABLE IF NOT EXISTS raw_sources (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   url TEXT UNIQUE NOT NULL,
@@ -131,6 +150,7 @@ ALTER TABLE issue_sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE issue_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE raw_sources ENABLE ROW LEVEL SECURITY;
 
+-- Public Read Policies
 DROP POLICY IF EXISTS "Allow public read on issues" ON issues;
 CREATE POLICY "Allow public read on issues" ON issues FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow public insert on issues" ON issues;

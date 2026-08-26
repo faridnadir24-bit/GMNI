@@ -95,7 +95,11 @@ export async function classifyArticleWithAI(
 
   if (apiKey && !apiKey.includes('your-openai')) {
     try {
-      const openai = new OpenAI({ apiKey });
+      const openai = new OpenAI({ 
+        apiKey,
+        timeout: 3500,
+        maxRetries: 0,
+      });
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [

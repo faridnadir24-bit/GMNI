@@ -10,7 +10,7 @@ export const mockKajianDocs: BahanKajianDocument[] = [
     author: 'Tim Riset & Advokasi Bidang SosPol GMNI Wastukancana',
     komisariat: 'GMNI Komisariat Wastukancana – Purwakarta',
     date_created: '2026-08-24',
-    status: 'Final Kajian',
+    status: 'Final',
     sections: {
       latar_belakang: 'Waduk Ir. H. Djuanda (Jatiluhur) adalah infrastruktur strategis nasional yang menopang ketahanan pangan 240.000 hektar sawah, pasokan 80% air baku DKI Jakarta, dan pembangkitan energi bersih. Namun, penumpukan Keramba Jaring Apung (KJA) liar yang ditengarai dikuasai pemodal non-lokal memicu degradasi kualitas air dan pendangkalan waduk. Rencana penertiban sepihak berisiko melindas hak hidup nelayan gurem lokal Purwakarta jika tidak disertai transparansi kuota dan jaminan alih profesi.',
       rumusan_masalah: [

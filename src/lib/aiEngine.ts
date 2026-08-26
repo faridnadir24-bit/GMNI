@@ -13,8 +13,8 @@ export interface AIAnalysisResult {
   badge: string;
   content: {
     overview?: string;
-    points?: { title: string; desc: string; icon?: string; badge?: string }[];
-    facts_vs_claims?: { fact: string; claim: string; unverified: string };
+    points?: { title: string; desc: string; icon?: string; badge?: string; source_ref?: string }[];
+    facts_vs_claims?: { fact: string; claim: string; unverified: string; source_ref?: string };
     discrepancies?: string[];
     missing_data?: string[];
     research_questions?: { dimension: string; question: string; priority: string }[];
@@ -35,10 +35,16 @@ export interface AIAnalysisResult {
   };
 }
 
-export function runAIAnalysis(issueId: string, actionType: string): AIAnalysisResult {
-  const issue = mockIssues.find(i => i.id === issueId) || mockIssues[0];
-  const claims = mockClaims.filter(c => c.issue_id === issue.id);
-  const sources = mockSources.filter(s => s.issue_id === issue.id);
+export function runAIAnalysis(
+  issueId: string, 
+  actionType: string,
+  dynamicIssue?: Issue,
+  dynamicSources?: Source[],
+  dynamicClaims?: Claim[]
+): AIAnalysisResult {
+  const issue = dynamicIssue || mockIssues.find(i => i.id === issueId || i.slug === issueId) || mockIssues[0];
+  const claims = dynamicClaims && dynamicClaims.length > 0 ? dynamicClaims : mockClaims.filter(c => c.issue_id === issue.id);
+  const sources = dynamicSources && dynamicSources.length > 0 ? dynamicSources : mockSources.filter(s => s.issue_id === issue.id);
   const actors = mockActors.filter(a => a.issue_id === issue.id);
 
   const timestamp = new Date().toISOString();
@@ -53,68 +59,59 @@ export function runAIAnalysis(issueId: string, actionType: string): AIAnalysisRe
         title: 'Ringkasan Eksekutif & Struktur Fakta',
         badge: 'Fakta Terverifikasi & Ruang Lingkup',
         content: {
-          overview: issue.summary_ai.what_happened,
+          overview: `${issue.summary_ai.what_happened} [Source 01]`,
           points: [
             {
-              title: 'Mengapa Isu Ini Penting?',
-              desc: issue.summary_ai.why_important,
-              badge: 'Signifikansi Publik'
+              title: 'Akar Persoalan & Kebijakan',
+              desc: `${issue.summary_ai.why_important} [Source 01, Source 02]`,
+              badge: 'Konfirmasi Resmi'
             },
             {
-              title: 'Kelompok Masyarakat Terdampak Langsung',
-              desc: issue.summary_ai.who_is_affected.join('; '),
-              badge: 'Masyarakat & Pekerja'
+              title: 'Masyarakat Rentan Terdampak',
+              desc: `Kelompok sasaran yang merasakan dampak langsung: ${issue.summary_ai.who_is_affected.join(', ')}. [Source 01]`,
+              badge: 'Kondisi Lapangan'
             },
             {
-              title: 'Aktor Kunci & Pemangku Kepentingan',
-              desc: issue.summary_ai.key_stakeholders.map(k => `${k.category}: ${k.entities.join(', ')}`).join(' | '),
-              badge: 'Pemetaan Aktor'
-            },
-            {
-              title: 'Celah Informasi & Hal Belum Diketahui',
-              desc: issue.summary_ai.unknown_gaps.join('; ') || 'Perlu verifikasi data pendukung lanjutan.',
-              badge: 'Data Gap'
+              title: 'Kekosongan Data & Regulasi',
+              desc: issue.summary_ai.unknown_gaps[0] || 'Perlu verifikasi alokasi anggaran dan skema kompensasi formal.',
+              badge: 'Celah Data'
             }
-          ],
-          discrepancies: issue.summary_ai.data_discrepancies || [
-            'Belum ditemukan kontradiksi data signifikan antar rilis resmi.'
           ]
         }
       };
     }
 
     case 'compare_sources': {
-      const verifiedSources = sources.filter(s => s.credibility_score >= 80);
-      const mediaSources = sources.filter(s => s.credibility_score < 80);
       return {
         action: 'compare_sources',
         issueId: issue.id,
         issueTitle: issue.title,
         timestamp,
-        title: 'Komparasi Silang & Deteksi Kontradiksi Antar Sumber',
-        badge: `${sources.length} Sumber Dianalisis`,
+        title: 'Komparasi Narasi & Temuan Kontradiksi',
+        badge: 'Cross-Source Triangulation',
         content: {
-          overview: `Sistem melakukan komparasi silang antara ${verifiedSources.length} sumber primer/resmi dengan ${mediaSources.length} laporan media dan sinyal publik guna mendeteksi deviasi narasi.`,
+          overview: `Membandingkan ${sources.length} dokumen sumber berita terhadap konsistensi narasi pemerintah, media, dan kesaksian warga.`,
+          discrepancies: [
+            `Selisih data: Pernyataan regulator mencatat penertiban telah disosialisasikan [Source 01], sementara serikat warga menyatakan tidak ada pemberitahuan kompensasi tertulis [Source 02].`,
+            `Status ganti rugi: Belum ada kesepakatan tertulis mengenai relokasi atau skema alih profesi bagi masyarakat terdampak.`
+          ],
           points: [
             {
-              title: 'Kesamaan Narasi Pokok',
-              desc: 'Seluruh sumber sepakat bahwa eskalasi permasalahan telah mencapai ambang batas yang memerlukan intervensi kebijakan segera dari otoritas berwenang.',
-              badge: 'Konsensus (100%)'
+              title: 'Narasi Rilis Resmi Regulator',
+              desc: 'Menekankan aspek ketertiban zonasi, kelestarian ekosistem, dan kepatuhan terhadap perda. [Source 01]',
+              badge: 'Official Source'
             },
             {
-              title: 'Perbedaan Sudut Pandang (Framing)',
-              desc: 'Sumber resmi otoritas cenderung menekankan aspek "penertiban hukum dan regulasi", sementara perwakilan masyarakat menekankan aspek "kelangsungan hidup ekonomi dan hak nafkah".',
-              badge: 'Divergensi Framing'
+              title: 'Liputan Independen Media Massa',
+              desc: 'Menyoroti penurunan pendapatan keluarga pembudidaya/buruh dan minimnya masa transisi. [Source 02]',
+              badge: 'National Media'
             },
             {
-              title: 'Indeks Keselarasan Data',
-              desc: 'Tingkat kesesuaian angka dan kronologi antar dokumen resmi berada pada angka 88/100.',
-              badge: 'Internal Reliability'
+              title: 'Kesaksian Lapangan Kaum Terdampak',
+              desc: 'Menuntut perlindungan mata pencaharian pokok dan keterbukaan akses dialog kebijakan.',
+              badge: 'Field Signal'
             }
-          ],
-          discrepancies: issue.summary_ai.data_discrepancies && issue.summary_ai.data_discrepancies.length > 0
-            ? issue.summary_ai.data_discrepancies
-            : ['Terdapat selisih estimasi jumlah subjek terdampak antara data paguyuban mandiri dan data sensus dinas terkait.']
+          ]
         }
       };
     }
@@ -125,26 +122,20 @@ export function runAIAnalysis(issueId: string, actionType: string): AIAnalysisRe
         issueId: issue.id,
         issueTitle: issue.title,
         timestamp,
-        title: 'Identifikasi Celah Data & Kebutuhan Investigasi Lapangan',
-        badge: 'Data Gap Analysis',
+        title: 'Celah Data & Informasi yang Belum Dirilis',
+        badge: 'Data Gap Detection',
         content: {
-          overview: 'AI menganalisis titik-titik data yang belum dirilis oleh otoritas publik atau masih bersifat spekulatif di media massa, sebagai panduan investigasi kader di lapangan.',
-          missing_data: [
-            ...issue.summary_ai.unknown_gaps,
-            'Salinan resmi dokumen Analisis Mengenai Dampak Lingkungan (AMDAL) atau audit tata ruang terbaru.',
-            'Laporan transparansi alokasi dana kompensasi / CSR bagi masyarakat terdampak langsung.',
-            'Data disagregasi jumlah warga lokal berpenghasilan rendah vs pemodal luar daerah.'
+          overview: 'Identifikasi informasi publik krusial yang belum diungkap secara transparan oleh instansi berwenang.',
+          missing_data: issue.summary_ai.unknown_gaps.length > 0 ? issue.summary_ai.unknown_gaps : [
+            'Rincian besaran anggaran pemulihan ekonomi dan bantuan sosial.',
+            'Kajian Analisis Mengenai Dampak Lingkungan (AMDAL) terkini.',
+            'Hasil audit kepatuhan korporasi terhadap serapan tenaga kerja lokal.'
           ],
           points: [
             {
-              title: 'Tindakan Investigasi Kader GMNI',
-              desc: 'Kader bidang SosPol disarankan melakukan verifikasi faktual door-to-door dan wawancara mendalam dengan tokoh masyarakat lokal.',
-              badge: 'Rekomendasi Riset Lapangan'
-            },
-            {
-              title: 'Permohonan Keterbukaan Informasi Publik (KIP)',
-              desc: 'Mengirimkan surat permohonan data resmi ke Pejabat Pengelola Informasi dan Dokumentasi (PPID) instansi terkait.',
-              badge: 'Advokasi Legal'
+              title: 'Keterbukaan Informasi Publik (KIP)',
+              desc: 'GMNI dapat melayangkan surat permohonan data resmi terkait transparansi pelaksanaan regulasi.',
+              badge: 'Rekomendasi Hukum'
             }
           ]
         }
@@ -157,14 +148,14 @@ export function runAIAnalysis(issueId: string, actionType: string): AIAnalysisRe
         issueId: issue.id,
         issueTitle: issue.title,
         timestamp,
-        title: 'Pemetaan Relasi Kuasa & Dinamika Aktor Pemangku Kepentingan',
-        badge: `${actors.length} Aktor Utama`,
+        title: 'Pemetaan Aktor & Konstelasi Relasi Kuasa',
+        badge: 'Power Dynamics & Stakeholders',
         content: {
-          overview: 'Analisis posisi, kepentingan, dan relasi daya tawar antar lembaga pemerintah, korporasi, aparat keamanan, dan kelompok masyarakat terdampak.',
-          points: actors.map(a => ({
-            title: `${a.name} (${a.organization})`,
-            desc: `Peran: ${a.role} | Sikap: [${a.stance}] | Pernyataan Kunci: ${a.statement}`,
-            badge: `Pengaruh: ${a.influence_level}`
+          overview: 'Membedah posisi kepentingan antara pembuat kebijakan, korporasi/pengelola modal, dan rakyat tertindas.',
+          points: issue.summary_ai.key_stakeholders.map(s => ({
+            title: s.category,
+            desc: `Entitas kunci: ${s.entities.join(', ')}. Menentukan arah regulasi dan pengalokasian sumber daya. [Source 01]`,
+            badge: s.category.includes('Pemerintah') ? 'Regulator' : 'Kelompok Kepentingan'
           }))
         }
       };
@@ -176,50 +167,40 @@ export function runAIAnalysis(issueId: string, actionType: string): AIAnalysisRe
         issueId: issue.id,
         issueTitle: issue.title,
         timestamp,
-        title: '8 Dimensi Pertanyaan Kajian Kritis & Dialektis',
-        badge: 'Dialectic Inquiry Matrix',
+        title: '8 Dimensi Pertanyaan Kritis Advokasi',
+        badge: 'Dialectical Research Framework',
         content: {
-          overview: 'Pertanyaan dirancang sistematis mencakup 8 dimensi untuk memandu diskusi komprehensif di forum kader dan tim riset advokasi.',
-          research_questions: [
-            { dimension: '1. Akar Masalah', question: `Apa faktor struktural dan regulasi masa lalu yang melandasi timbulnya polemik ${issue.title}?`, priority: 'Tinggi' },
-            { dimension: '2. Kelompok Terdampak', question: `Siapa kelompok masyarakat berpenghasilan rendah yang paling rentan mengalami kerugian ekonomi dan sosial akibat kebijakan ini?`, priority: 'Tinggi' },
-            { dimension: '3. Respons Kebijakan', question: `Bagaimana efektivitas dan keberpihakan respons instansi pemerintah daerah dalam menangani aduan warga?`, priority: 'Tinggi' },
-            { dimension: '4. Kesenjangan Implementasi', question: `Apakah terdapat perbedaan nyata antara aturan di atas kertas (de jure) dengan praktik aparat di lapangan (de facto)?`, priority: 'Tinggi' },
-            { dimension: '5. Kondisi Lapangan', question: `Bagaimana suara otentik dan keluhan riil yang dirasakan langsung oleh masyarakat akar rumput?`, priority: 'Sedang' },
-            { dimension: '6. Celah Data', question: `Informasi dan dokumen publik apa yang sengaja ditutup atau belum tersedia bagi pengawasan publik?`, priority: 'Tinggi' },
-            { dimension: '7. Dampak Jangka Panjang', question: `Apa konsekuensi ekologis, sosial, dan ekonomi 5 hingga 10 tahun mendatang jika isu ini diabaikan?`, priority: 'Sedang' },
-            { dimension: '8. Alternatif Kebijakan', question: `Solusi konkret dan regulasi alternatif apa yang dapat diusulkan GMNI kepada pembuat kebijakan?`, priority: 'Tinggi' }
-          ]
+          overview: 'Daftar pertanyaan berbasis kerangka dialektika materialistis untuk investigasi lapangan kader GMNI.',
+          research_questions: (issue.marhaenism_analysis.critical_questions || []).map((q, idx) => ({
+            dimension: `Dimensi 0${idx + 1}: Keadilan Sosial & Regulasi`,
+            question: `${q} [Source 01]`,
+            priority: idx === 0 ? 'Tinggi' : 'Sedang'
+          }))
         }
       };
     }
 
     case 'recommend_research': {
-      const rec = issue.research_recommendation;
       return {
         action: 'recommend_research',
         issueId: issue.id,
         issueTitle: issue.title,
         timestamp,
-        title: 'Rekomendasi Kelayakan Riset & Kajian Strategis',
-        badge: `Status: ${rec.verdict} (${rec.score}/100)`,
+        title: 'Evaluasi Kelayakan Naskah Kebijakan',
+        badge: 'Policy Paper Feasibility',
         content: {
-          overview: `Berdasarkan kalkulasi 6 indikator internal (Relevansi, Dampak Kerakyatan, Urgensi, Ketersediaan Data, Potensi Kebijakan, dan Lokus Teritorial), isu ini dinilai "${rec.verdict}".`,
           recommendation: {
-            verdict: rec.verdict,
-            score: rec.score,
+            verdict: issue.research_recommendation.verdict,
+            score: issue.research_recommendation.score,
             reasoning: [
-              `Relevansi Isu: ${rec.relevance_notes}`,
-              `Urgensi Waktu: ${rec.urgency_notes}`,
-              `Ketersediaan Data: ${rec.data_availability}`,
-              `Dampak Rakyat Marhaen: ${rec.grassroots_impact}`,
-              `Potensi Kebijakan: ${rec.policy_potential}`
+              `Dampak kerentanan sosial (Impact Score: ${issue.impact_score}/100) memerlukan advokasi afirmatif.`,
+              `Ketersediaan rujukan terverifikasi (Evidence Score: ${issue.evidence_score}/100) mencukupi untuk perumusan naskah akademik.`,
+              `Tingkat keyakinan data (Confidence: ${issue.confidence_score || 80}/100) meminimalisasi risiko bias informasi.`
             ],
             action_items: [
-              `Sudut Pandang yang Disarankan: ${rec.suggested_angle}`,
-              'Segera bentuk Tim Khusus Kajian Isu di bawah koordinasi Bidang SosPol.',
-              'Jadwalkan Focus Group Discussion (FGD) internal komisariat dalam minggu ini.',
-              'Susun Policy Brief ringkas untuk diserahkan ke fraksi legislatif dan pemda.'
+              'Bentuk tim perumus naskah kajian di bawah Bidang Sosial Politik GMNI Wastukancana.',
+              'Lakukan Focus Group Discussion (FGD) bersama perwakilan kelompok terdampak.',
+              'Serahkan Naskah Rekomendasi Kebijakan resmi kepada DPRD Kabupaten Purwakarta.'
             ]
           }
         }
@@ -227,77 +208,34 @@ export function runAIAnalysis(issueId: string, actionType: string): AIAnalysisRe
     }
 
     case 'marhaenism_framework': {
-      const m = issue.marhaenism_analysis;
       return {
         action: 'marhaenism_framework',
         issueId: issue.id,
         issueTitle: issue.title,
         timestamp,
-        title: 'Analisis Perspektif GMNI & Pisau Analisis Marhaenisme',
-        badge: 'Kerangka Ideologis Marhaenisme',
+        title: 'Uji Kerangka Ideologi Marhaenisme',
+        badge: 'Sosio-Nasionalisme & Sosio-Demokrasi',
         content: {
-          overview: 'Pisau analisis Marhaenisme membedah relasi kuasa kapital, birokrasi, dan perlindungan terhadap kaum Marhaen (petani gurem, buruh rentan, nelayan tradisional, dan rakyat kecil).',
           marhaenism: {
-            sosio_nasionalisme: m.sosio_nasionalisme,
-            sosio_demokrasi: m.sosio_demokrasi,
-            trisakti: m.trisakti_perspective,
-            pro_poor_defense: m.pro_poor_advocacy_notes,
-            dialectical_questions: m.critical_questions
-          }
-        }
-      };
-    }
-
-    case 'generate_kajian_outline': {
-      return {
-        action: 'generate_kajian_outline',
-        issueId: issue.id,
-        issueTitle: issue.title,
-        timestamp,
-        title: 'Draf Dokumen Bahan Kajian & Policy Brief Siap Terbit',
-        badge: 'Generator Bahan Kajian Otomatis',
-        content: {
-          overview: 'Struktur naskah kajian akademik-advokasi lengkap yang mengintegrasikan fakta terkonfirmasi, analisis dialektis Marhaenis, dan rekomendasi aksi konkret.',
-          kajian_draft: {
-            title: `Kajian Kebijakan: Penanganan Strategis ${issue.title}`,
-            subtitle: `Naskah Advokasi dan Kajian Sosial Politik GMNI Komisariat Wastukancana Purwakarta`,
-            author: 'Bidang Sosial Politik GMNI Wastukancana',
-            komisariat: 'GMNI Komisariat Wastukancana – Purwakarta',
-            status: 'Draft',
-            sections: {
-              latar_belakang: issue.summary_ai.what_happened + ' ' + issue.summary_ai.why_important,
-              rumusan_masalah: [
-                `Bagaimana dampak langsung ${issue.title} terhadap kehidupan sosial ekonomi masyarakat?`,
-                `Sejauh mana kebijakan pemerintah daerah dan pusat telah memenuhi rasa keadilan rakyat?`,
-                `Apa rekomendasi langkah taktis dan strategis yang harus diperjuangkan GMNI?`
-              ],
-              data_dan_fakta: claims.filter(c => c.type === 'fact').map(c => `${c.content} (Sumber: ${c.source_name})`),
-              kronologi_singkat: [
-                `Isu terdeteksi pertama kali: ${issue.first_detected_at.slice(0, 10)}`,
-                `Pembaruan bukti dan data sumber: ${issue.last_updated_at.slice(0, 10)}`
-              ],
-              pihak_terkait: actors.map(a => ({ nama: a.name, peran: a.role, posisi: a.stance })),
-              analisis_sosial_politik: issue.marhaenism_analysis.sosio_demokrasi,
-              perspektif_marhaenisme: issue.marhaenism_analysis.sosio_nasionalisme,
-              dampak_masyarakat: issue.summary_ai.who_is_affected.join(', '),
-              alternatif_kebijakan: [
-                'Moratorium kebijakan sepihak dan pembukaan ruang dengar pendapat publik secara partisipatif.',
-                'Audit investigasi terbuka terhadap pihak-pihak yang mengambil keuntungan sepihak.',
-                'Penyusunan regulasi perlindungan afirmatif bagi kelompok rentan dan masyarakat lokal.'
-              ],
-              rekomendasi_advokasi: [
-                'Penerbitan Policy Paper resmi GMNI ke DPRD dan Bupati/Gubernur.',
-                'Penggalangan solidaritas antar-elemen gerakan mahasiswa dan serikat rakyat.',
-                'Audiensi dan advokasi lapangan secara konsisten hingga tuntutan rakyat dipenuhi.'
-              ],
-              daftar_pustaka: sources.map(s => ({ title: s.title, source: s.source_name, year: s.published_at.slice(0, 4) }))
-            }
+            sosio_nasionalisme: `${issue.marhaenism_analysis.sosio_nasionalisme} [Source 01]`,
+            sosio_demokrasi: `${issue.marhaenism_analysis.sosio_demokrasi} [Source 01, Source 02]`,
+            trisakti: issue.marhaenism_analysis.trisakti_perspective,
+            pro_poor_defense: issue.marhaenism_analysis.pro_poor_advocacy_notes,
+            dialectical_questions: issue.marhaenism_analysis.critical_questions
           }
         }
       };
     }
 
     default:
-      return runAIAnalysis(issueId, 'summarize');
+      return {
+        action: 'default',
+        issueId: issue.id,
+        issueTitle: issue.title,
+        timestamp,
+        title: 'Analisis Kebijakan Isu',
+        badge: 'GMNI Intelligence',
+        content: { overview: issue.description }
+      };
   }
 }
