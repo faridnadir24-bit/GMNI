@@ -2,9 +2,11 @@ import crypto from 'crypto';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { fetchRawRSSFeeds, RawRSSItem, storeRawSourcesInDatabase } from './rss-fetcher';
 import { classifyArticleWithAI, AIClassificationOutput } from './ai-classifier';
-import { matchArticleToIssue, generateNeutralIssueTitle, generateIssueSlug, CandidateIssue } from './issue-cluster';
-import { calculatePriorityScore, calculateConfidenceScore, SOURCE_CREDIBILITY_MAP } from './issue-priority';
-import { NormalizedSourceType } from '@/types';
+import { matchArticleToIssue, generateNeutralIssueTitle, generateIssueSlug, CandidateIssue, extractEntities } from './semantic-cluster';
+import { calculatePriorityScore, calculateNoveltyScore, determineIssueStatus, SOURCE_CREDIBILITY_MAP } from './issue-priority';
+import { calculateConfidence } from './confidence-engine';
+import { detectIssueChanges } from './issue-change-detector';
+import { NormalizedSourceType, ChangeSeverity } from '@/types';
 
 export interface NewsSyncResult {
   success: boolean;
@@ -25,6 +27,9 @@ export interface NewsSyncResult {
     action: 'created_issue' | 'attached_to_existing' | 'skipped_irrelevant';
     issueId?: string | null;
     issueTitle?: string;
+    matchScore?: number;
+    severity?: ChangeSeverity;
+    highlights?: string[];
   }[];
 }
 
@@ -53,9 +58,9 @@ let isSyncRunning = false;
 let lastSyncStartTime = 0;
 
 /**
- * UNIFIED NEWS SYNC ENGINE
+ * UNIFIED NEWS SYNC ENGINE (FASE 5)
  * Transforms raw news articles into structured policy intelligence issues.
- * Pipeline: BERITA → SUMBER → VALIDASI → CLUSTERING → ISU → UPDATE ISU → EVIDENCE → EVENTS
+ * Pipeline: BERITA → SUMBER → VALIDASI → SEMANTIC CLUSTERING → ATTACH/CREATE → CHANGE DETECTION → CONFIDENCE → EVENTS
  */
 export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): Promise<NewsSyncResult> {
   const startTime = Date.now();
@@ -137,7 +142,7 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
         newArticlesCount = insertedArt.length;
       }
     } catch (e) {
-      // Table articles might still be migrating; raw_sources handles fallback
+      // Table articles graceful fallback
     }
 
     // 4. Query candidate pending articles / raw sources to process
@@ -184,7 +189,7 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
     // 5. Fetch all candidate issues for clustering
     const { data: dbIssues } = await supabase
       .from('issues')
-      .select('id, title, category, location, sub_location, summary, last_activity_at, detected_at, source_count, source_urls, source_names, verified_facts, claims, unverified, research_questions, evidence_score, momentum_score');
+      .select('id, title, category, location, sub_location, summary, last_activity_at, detected_at, source_count, source_urls, source_names, verified_facts, claims, unverified, research_questions, evidence_score, momentum_score, priority_score, confidence_score');
 
     const existingCandidateIssues: CandidateIssue[] = (dbIssues || []).map(i => ({
       id: i.id,
@@ -195,13 +200,14 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
       summary: i.summary,
       last_activity_at: i.last_activity_at,
       detected_at: i.detected_at,
+      entities: extractEntities(`${i.title} ${i.summary || ''}`),
     }));
 
     let newIssuesCreated = 0;
     let existingIssuesUpdated = 0;
     const processDetails: NewsSyncResult['details'] = [];
 
-    // 6. Process each item through Clustering & Deduplication Engine
+    // 6. Process each item through Clustering & Change Detection Engine
     for (const item of pendingItems) {
       try {
         const classification = await classifyArticleWithAI(item.title, item.content);
@@ -221,11 +227,12 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
           continue;
         }
 
-        // Run Issue Clustering Engine: BERITA ≠ ISU
+        // Run Semantic Clustering Engine: ARTIKEL BARU ≠ ISU BARU
         const clusterMatch = matchArticleToIssue(
           {
             title: classification.title,
             summary: classification.summary,
+            content: item.content,
             category: classification.category,
             location: classification.location,
             sub_location: classification.sub_location,
@@ -236,85 +243,122 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
 
         let targetIssueId: string | null = null;
         let targetIssueTitle: string = '';
+        let targetIssueSlug: string = '';
         const sourceType = determineSourceType(item.source_name || 'Media', item.url);
 
         if (clusterMatch.isMatch && clusterMatch.matchedIssueId) {
-          // ATTACH TO EXISTING ISSUE (Cluster into 1 Issue)
+          // ==========================================
+          // A. ATTACH TO EXISTING ISSUE (MERGE / UPDATE)
+          // ==========================================
           targetIssueId = clusterMatch.matchedIssueId;
           const existingIssue = dbIssues?.find(i => i.id === targetIssueId);
           targetIssueTitle = existingIssue?.title || clusterMatch.matchedIssueTitle || classification.title;
 
           const updatedSourceUrls = Array.from(new Set([...(existingIssue?.source_urls || []), item.url]));
           const updatedSourceNames = Array.from(new Set([...(existingIssue?.source_names || []), item.source_name || 'Media Terkini']));
-          const updatedFacts = Array.from(new Set([...(existingIssue?.verified_facts || []), ...(classification.verified_facts || [])]));
-          const updatedClaims = Array.from(new Set([...(existingIssue?.claims || []), ...(classification.claims || [])]));
-          const updatedUnverified = Array.from(new Set([...(existingIssue?.unverified || []), ...(classification.unverified || [])]));
-          const updatedQuestions = Array.from(new Set([...(existingIssue?.research_questions || []), ...(classification.research_questions || [])]));
 
-          const confidenceMeta = calculateConfidenceScore({
+          const officialCount = updatedSourceNames.filter(s => s.toLowerCase().includes('antara') || s.toLowerCase().includes('pemkab') || s.toLowerCase().includes('dinas') || s.toLowerCase().includes('polres')).length;
+          const nationalCount = updatedSourceNames.filter(s => s.toLowerCase().includes('tempo') || s.toLowerCase().includes('cnn') || s.toLowerCase().includes('republika') || s.toLowerCase().includes('kompas') || s.toLowerCase().includes('detik')).length;
+          const localCount = updatedSourceNames.filter(s => s.toLowerCase().includes('radar') || s.toLowerCase().includes('purwakarta')).length;
+
+          // Confidence calculation
+          const confidenceMeta = calculateConfidence({
             sourceCount: updatedSourceUrls.length,
-            officialCount: updatedSourceNames.filter(s => s.toLowerCase().includes('antara') || s.toLowerCase().includes('pemkab')).length,
-            nationalCount: updatedSourceNames.filter(s => s.toLowerCase().includes('tempo') || s.toLowerCase().includes('cnn') || s.toLowerCase().includes('republika')).length,
-            localCount: updatedSourceNames.filter(s => s.toLowerCase().includes('radar') || s.toLowerCase().includes('purwakarta')).length,
-            hasContradictions: false,
+            officialCount,
+            nationalCount,
+            localCount,
+            contradictionCount: 0,
             hoursSinceLastUpdate: 1,
+            hasVerifiedFacts: true,
           });
 
+          // Momentum calculation
+          const newMomentum = Math.min(100, Math.max(existingIssue?.momentum_score || 65, classification.momentum_score + 6));
+
+          // Priority V2 calculation
           const priorityScore = calculatePriorityScore({
             impact_score: classification.impact_score,
             evidence_score: Math.max(existingIssue?.evidence_score || 70, classification.evidence_score),
-            momentum_score: Math.min(100, Math.max(existingIssue?.momentum_score || 65, classification.momentum_score + 8)),
+            momentum_score: newMomentum,
+            confidence_score: confidenceMeta.score,
             location: classification.location,
             is_purwakarta_priority: classification.location.toLowerCase().includes('purwakarta'),
+            change_severity: sourceType === 'official' ? 'MEDIUM' : 'LOW',
           });
 
-          // Update Issue in database (V2 with graceful V1 fallback)
-          const { error: updateError } = await supabase
+          // Change Detection Engine
+          const changeResult = detectIssueChanges(
+            {
+              id: targetIssueId,
+              title: targetIssueTitle,
+              source_count: updatedSourceUrls.length,
+              source_names: updatedSourceNames,
+              source_urls: updatedSourceUrls,
+              verified_facts: existingIssue?.verified_facts || [],
+              claims: existingIssue?.claims || [],
+              unverified: existingIssue?.unverified || [],
+              confidence_score: existingIssue?.confidence_score || 60,
+              momentum_score: existingIssue?.momentum_score || 60,
+              priority_score: existingIssue?.priority_score || 70,
+            },
+            {
+              url: item.url,
+              title: item.title,
+              summary: classification.summary,
+              content: item.content,
+              sourceName: item.source_name || 'Media Massa',
+              sourceType,
+              publishedAt: item.published_at || new Date().toISOString(),
+              verifiedFacts: classification.verified_facts,
+              claims: classification.claims,
+              unverified: classification.unverified,
+            },
+            confidenceMeta.score,
+            newMomentum,
+            priorityScore
+          );
+
+          // Status Engine transition
+          const updatedStatus = determineIssueStatus({
+            sourceCount: updatedSourceUrls.length,
+            officialCount,
+            confidenceScore: confidenceMeta.score,
+            momentumScore: newMomentum,
+            hoursSinceLastUpdate: 1,
+          });
+
+          // Update existing issue in Supabase
+          await supabase
             .from('issues')
             .update({
               source_urls: updatedSourceUrls,
               source_names: updatedSourceNames,
               source_count: updatedSourceUrls.length,
-              verified_facts: updatedFacts,
-              claims: updatedClaims,
-              unverified: updatedUnverified,
-              research_questions: updatedQuestions,
-              momentum_score: Math.min(100, (existingIssue?.momentum_score || 60) + 5),
+              verified_facts: changeResult.updatedFacts,
+              claims: changeResult.updatedClaims,
+              unverified: changeResult.updatedUnverified,
+              momentum_score: newMomentum,
               confidence_score: confidenceMeta.score,
               priority_score: priorityScore,
+              status: updatedStatus.toLowerCase(),
               last_activity_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
             .eq('id', targetIssueId);
 
-          if (updateError) {
-            await supabase
-              .from('issues')
-              .update({
-                source_urls: updatedSourceUrls,
-                source_names: updatedSourceNames,
-                source_count: updatedSourceUrls.length,
-                verified_facts: updatedFacts,
-                claims: updatedClaims,
-                unverified: updatedUnverified,
-                research_questions: updatedQuestions,
-                momentum_score: Math.min(100, (existingIssue?.momentum_score || 60) + 5),
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', targetIssueId);
+          // Insert generated change events into issue_events
+          for (const ev of changeResult.newEvents) {
+            try {
+              await supabase.from('issue_events').insert({
+                issue_id: targetIssueId,
+                event_type: ev.event_type,
+                title: ev.title,
+                description: ev.description,
+                source_name: ev.source_name,
+                event_at: ev.event_at || new Date().toISOString(),
+              });
+            } catch (e) {}
           }
-
-          // Record timeline event
-          try {
-            await supabase.from('issue_events').insert({
-              issue_id: targetIssueId,
-              event_type: 'source_added',
-              title: `Rujukan baru dari ${item.source_name || 'Media Massa'}`,
-              description: `Liputan terkait "${item.title}" ditambahkan ke dalam basis bukti isu.`,
-              source_name: item.source_name || 'Media',
-              event_at: new Date().toISOString(),
-            });
-          } catch (e) {}
 
           // Record in issue_sources junction table
           try {
@@ -339,10 +383,15 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
             action: 'attached_to_existing',
             issueId: targetIssueId,
             issueTitle: targetIssueTitle,
+            matchScore: clusterMatch.matchScore,
+            severity: changeResult.severity,
+            highlights: changeResult.changeSummary.change_highlights,
           });
 
         } else {
-          // CREATE NEW ISSUE WITH NEUTRAL EDITORIAL TITLE
+          // ==========================================
+          // B. CREATE NEW CANONICAL ISSUE
+          // ==========================================
           const neutralTitle = generateNeutralIssueTitle(
             classification.title,
             classification.category,
@@ -351,22 +400,26 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
           );
           const slug = generateIssueSlug(neutralTitle);
           targetIssueTitle = neutralTitle;
+          targetIssueSlug = slug;
+
+          const confidenceMeta = calculateConfidence({
+            sourceCount: 1,
+            officialCount: sourceType === 'official' ? 1 : 0,
+            nationalCount: sourceType === 'national_media' ? 1 : 0,
+            localCount: sourceType === 'local_media' ? 1 : 0,
+            contradictionCount: 0,
+            hoursSinceLastUpdate: 1,
+            hasVerifiedFacts: true,
+          });
 
           const priorityScore = calculatePriorityScore({
             impact_score: classification.impact_score,
             evidence_score: classification.evidence_score,
             momentum_score: classification.momentum_score,
+            confidence_score: confidenceMeta.score,
             location: classification.location,
             is_purwakarta_priority: classification.location.toLowerCase().includes('purwakarta'),
-          });
-
-          const confidenceMeta = calculateConfidenceScore({
-            sourceCount: 1,
-            officialCount: sourceType === 'official' ? 1 : 0,
-            nationalCount: sourceType === 'national_media' ? 1 : 0,
-            localCount: sourceType === 'local_media' ? 1 : 0,
-            hasContradictions: false,
-            hoursSinceLastUpdate: 1,
+            change_severity: 'LOW',
           });
 
           const newIssuePayload = {
@@ -379,110 +432,71 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
             status: classification.status || 'emerging',
             impact_score: classification.impact_score,
             urgency_score: Math.min(100, classification.impact_score + 2),
-            evidence_score: classification.evidence_score,
             momentum_score: classification.momentum_score,
+            evidence_score: classification.evidence_score,
+            credibility_score: SOURCE_CREDIBILITY_MAP[sourceType] || 80,
             confidence_score: confidenceMeta.score,
             priority_score: priorityScore,
-            source_count: 1,
             mention_count: 1,
-            is_priority: priorityScore >= 85,
-            is_emerging: true,
+            source_count: 1,
             source_urls: [item.url],
             source_names: [item.source_name || 'Media Terkini'],
-            published_at: item.published_at || new Date().toISOString(),
-            first_detected_at: new Date().toISOString(),
-            last_activity_at: new Date().toISOString(),
-            detected_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            verified_facts: classification.verified_facts || [],
+            verified_facts: classification.verified_facts || [item.title],
             claims: classification.claims || [],
             unverified: classification.unverified || [],
             research_questions: classification.research_questions || [],
-            actor_map: [],
+            detected_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           };
 
-          let insertedIssueId: string | null = null;
-          const { data: insertedV2, error: insertIssueErr } = await supabase
+          const { data: createdIssue, error: insertError } = await supabase
             .from('issues')
             .insert(newIssuePayload)
-            .select('id')
+            .select('id, title, slug')
             .single();
 
-          if (insertedV2) {
-            insertedIssueId = insertedV2.id;
-          } else {
-            // Fallback to V1 columns
-            const v1Payload = {
-              slug,
-              title: neutralTitle,
-              summary: classification.summary,
-              category: classification.category,
-              location: classification.location,
-              sub_location: classification.sub_location,
-              status: classification.status || 'emerging',
-              impact_score: classification.impact_score,
-              evidence_score: classification.evidence_score,
-              momentum_score: classification.momentum_score,
-              source_count: 1,
-              source_urls: [item.url],
-              source_names: [item.source_name || 'Media Terkini'],
-              published_at: item.published_at || new Date().toISOString(),
-              detected_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              verified_facts: classification.verified_facts || [],
-              claims: classification.claims || [],
-              unverified: classification.unverified || [],
-              research_questions: classification.research_questions || [],
-              actor_map: [],
-            };
-            const { data: insertedV1 } = await supabase
-              .from('issues')
-              .insert(v1Payload)
-              .select('id')
-              .single();
+          if (!insertError && createdIssue) {
+            targetIssueId = createdIssue.id;
+            targetIssueSlug = createdIssue.slug;
 
-            if (insertedV1) {
-              insertedIssueId = insertedV1.id;
-            }
-          }
-
-          if (insertedIssueId) {
-            targetIssueId = insertedIssueId;
-
-            // Register in existingCandidateIssues so subsequent articles in same batch can cluster into it
+            // Add newly created issue to in-memory candidate list for subsequent items in the batch
             existingCandidateIssues.push({
-              id: targetIssueId,
-              title: neutralTitle,
+              id: createdIssue.id,
+              title: createdIssue.title,
               category: classification.category,
               location: classification.location,
               sub_location: classification.sub_location,
               summary: classification.summary,
               last_activity_at: new Date().toISOString(),
+              detected_at: new Date().toISOString(),
+              entities: extractEntities(`${neutralTitle} ${classification.summary}`),
             });
 
             // Insert initial timeline event
             try {
               await supabase.from('issue_events').insert({
                 issue_id: targetIssueId,
-                event_type: 'source_added',
-                title: `Isu pertama kali terdeteksi dari ${item.source_name || 'Media'}`,
-                description: `Pemberitaan awal terbit mengenai "${item.title}".`,
+                event_type: sourceType === 'official' ? 'official_statement' : 'source_added',
+                title: `Liputan awal dari ${item.source_name || 'Media Nasional / Daerah'}`,
+                description: `Pemberitaan terverifikasi pertama kali terdata dalam sistem pengawasan isu.`,
                 source_name: item.source_name || 'Media',
-                event_at: new Date().toISOString(),
+                event_at: item.published_at || new Date().toISOString(),
               });
             } catch (e) {}
 
-            // Insert in issue_sources
+            // Insert into issue_sources
             try {
               await supabase.from('issue_sources').insert({
                 issue_id: targetIssueId,
                 article_id: item.id,
                 source_url: item.url,
-                source_name: item.source_name || 'Media Utama',
+                source_name: item.source_name || 'Media Rujukan',
                 source_type: sourceType,
                 published_at: item.published_at || new Date().toISOString(),
                 relevance_score: 90,
-                credibility_score: SOURCE_CREDIBILITY_MAP[sourceType] || 85,
+                credibility_score: SOURCE_CREDIBILITY_MAP[sourceType] || 80,
                 is_primary: true,
               });
             } catch (e) {}
@@ -494,67 +508,70 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
               source: item.source_name || 'Media',
               action: 'created_issue',
               issueId: targetIssueId,
-              issueTitle: targetIssueTitle,
+              issueTitle: neutralTitle,
+              matchScore: clusterMatch.matchScore,
+              severity: 'LOW',
+              highlights: ['Inisialisasi pemantauan isu baru berbasis rujukan terverifikasi.'],
             });
           }
         }
 
-        // 7. Mark article and raw_source as processed and link to issue_id
-        try {
-          await supabase
-            .from('articles')
-            .update({
+        // 7. Update article record with issue association
+        if (targetIssueId) {
+          try {
+            await supabase.from('articles').update({
               processed: true,
               issue_id: targetIssueId,
+              issue_title: targetIssueTitle,
+              issue_slug: targetIssueSlug || undefined,
+              relevance_score: 85,
               category: classification.category,
               location: classification.location,
               sub_location: classification.sub_location,
-              relevance_score: 90,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id);
+            }).eq('id', item.id);
+          } catch (e) {}
+        }
+
+        // Mark raw_source as processed
+        try {
+          await supabase.from('raw_sources').update({ processed: true }).eq('url', item.url);
         } catch (e) {}
 
-        await supabase
-          .from('raw_sources')
-          .update({
-            processed: true,
-            issue_id: targetIssueId,
-          })
-          .eq('url', item.url);
-
-      } catch (itemErr: any) {
-        console.error(`[News Sync Engine] Error processing item ${item.title}:`, itemErr?.message || itemErr);
+      } catch (err) {
+        console.error(`[NewsSync] Error processing item "${item.title}":`, err);
       }
     }
 
-    // Get final count of issues in database
-    const { count: totalIssuesCount } = await supabase
+    // 8. Final Count
+    const { count: finalIssueCount } = await supabase
       .from('issues')
       .select('*', { count: 'exact', head: true });
 
     const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
+    isSyncRunning = false;
 
     return {
       success: true,
-      message: `Sinkronisasi intelligence engine selesai dalam ${durationSec}s. (${newIssuesCreated} isu baru dibuat, ${existingIssuesUpdated} isu diperbarui).`,
+      message: `Sinkronisasi selesai dalam ${durationSec}s. ${newArticlesCount} artikel baru terindeks, ${existingIssuesUpdated} isu diperbarui dengan bukti baru, ${newIssuesCreated} isu baru teridentifikasi.`,
       duration: `${durationSec}s`,
       summary: {
         totalRssFetched: rawItems.length,
         newArticlesInserted: newArticlesCount,
-        processedByAI: processDetails.length,
+        processedByAI: pendingItems.length,
         newIssuesCreated,
         existingIssuesUpdated,
-        totalIssuesInDatabase: totalIssuesCount || 0,
+        totalIssuesInDatabase: finalIssueCount || 0,
       },
       details: processDetails,
     };
+
   } catch (error: any) {
-    console.error('[News Sync Engine] Fatal Pipeline Error:', error);
+    isSyncRunning = false;
+    console.error('[NewsSync] Engine error:', error);
     return {
       success: false,
-      message: `Gagal menjalankan pipeline sinkronisasi: ${error?.message || 'Unknown error'}`,
-      duration: '0.00s',
+      message: error?.message || 'Terjadi kesalahan sistem saat sinkronisasi.',
+      duration: `${((Date.now() - startTime) / 1000).toFixed(2)}s`,
       summary: {
         totalRssFetched: 0,
         newArticlesInserted: 0,
@@ -565,7 +582,5 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
       },
       details: [],
     };
-  } finally {
-    isSyncRunning = false;
   }
 }

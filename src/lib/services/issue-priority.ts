@@ -1,4 +1,5 @@
-import { Issue, RadarKecamatan, EvidenceBreakdown, IssueEvent } from '@/types';
+import { Issue, RadarKecamatan, EvidenceBreakdown, IssueEvent, IssueStatus, ChangeSeverity } from '@/types';
+import { calculateConfidence } from './confidence-engine';
 
 export const PURWAKARTA_DISTRICTS = [
   'Jatiluhur',
@@ -30,39 +31,108 @@ export const SOURCE_CREDIBILITY_MAP = {
 };
 
 /**
- * Priority Score Formula:
- * Combines Impact (35%), Urgency (25%), Evidence (20%), Momentum (15%),
- * with a Territorial Priority Weight (+5%) for Purwakarta focus.
+ * Priority Score V2 Formula:
+ * Combines Impact (30%), Urgency (20%), Evidence (20%), Momentum (15%), Confidence (10%),
+ * with a Purwakarta First Territorial Priority Boost (+8%) and Change Severity Boost.
+ * VIRAL ≠ IMPORTANT.
  */
 export function calculatePriorityScore(issue: {
   impact_score: number;
   urgency_score?: number;
   evidence_score: number;
   momentum_score: number;
+  confidence_score?: number;
   location?: string;
   is_purwakarta_priority?: boolean;
+  change_severity?: ChangeSeverity;
 }): number {
   const impact = issue.impact_score || 70;
   const urgency = issue.urgency_score || Math.min(100, impact + 2);
   const evidence = issue.evidence_score || 70;
   const momentum = issue.momentum_score || 60;
-  const isPurwakarta = (issue.location || '').toLowerCase().includes('purwakarta') || issue.is_purwakarta_priority;
+  const confidence = issue.confidence_score || 65;
+  const loc = (issue.location || '').toLowerCase();
+  
+  const isPurwakarta = loc.includes('purwakarta') || issue.is_purwakarta_priority;
+  const isJabar = loc.includes('jawa barat') || loc.includes('jabar');
 
-  const baseScore = (impact * 0.35) + (urgency * 0.25) + (evidence * 0.20) + (momentum * 0.15);
-  const territorialBoost = isPurwakarta ? 5 : 0;
+  const baseScore = 
+    (impact * 0.30) + 
+    (urgency * 0.20) + 
+    (evidence * 0.20) + 
+    (momentum * 0.15) + 
+    (confidence * 0.10);
 
-  return Math.min(100, Math.round(baseScore + territorialBoost));
+  let territorialBoost = 0;
+  if (isPurwakarta) territorialBoost = 8;
+  else if (isJabar) territorialBoost = 4;
+
+  let severityBoost = 0;
+  if (issue.change_severity === 'CRITICAL') severityBoost = 6;
+  else if (issue.change_severity === 'HIGH') severityBoost = 4;
+  else if (issue.change_severity === 'MEDIUM') severityBoost = 2;
+
+  return Math.min(100, Math.round(baseScore + territorialBoost + severityBoost));
 }
 
 /**
- * Confidence Score Formula:
- * Measures data robustness, independent source validation, and consistency.
- * Considers:
- * - Number of independent sources (min 1, optimal >= 5)
- * - Presence of official sources
- * - Source diversity (Official + National + Local)
- * - Absence of major data contradictions
- * - Recency (< 24h = fresh)
+ * Information Novelty Score (0 - 100):
+ * Distinguishes whether an article introduces new facts/policies or simply repeats old news.
+ */
+export function calculateNoveltyScore(params: {
+  isOfficialStatement?: boolean;
+  hasNewPolicy?: boolean;
+  hasNewNumbers?: boolean;
+  isRepetition?: boolean;
+  isFirstArticle?: boolean;
+}): number {
+  if (params.isFirstArticle) return 85;
+  if (params.hasNewPolicy) return 97;
+  if (params.isOfficialStatement) return 92;
+  if (params.hasNewNumbers) return 84;
+  if (params.isRepetition) return 18;
+  return 60;
+}
+
+/**
+ * Status Transition Engine:
+ * EMERGING -> MONITORING -> DEVELOPING -> CONFIRMED -> ARCHIVED (and STALE)
+ * Confirmed requires official confirmation + multiple independent sources.
+ */
+export function determineIssueStatus(params: {
+  sourceCount: number;
+  officialCount: number;
+  confidenceScore: number;
+  momentumScore: number;
+  hoursSinceLastUpdate: number;
+}): IssueStatus {
+  const { sourceCount, officialCount, confidenceScore, momentumScore, hoursSinceLastUpdate } = params;
+
+  // Stale detection
+  if (hoursSinceLastUpdate > 168) {
+    return 'Archived';
+  }
+
+  // Confirmed: At least 1 official source + multiple sources + high confidence
+  if (officialCount >= 1 && sourceCount >= 3 && confidenceScore >= 75) {
+    return 'Confirmed';
+  }
+
+  // Developing: Escalating momentum or solid multi-source base
+  if (sourceCount >= 4 || momentumScore >= 80) {
+    return 'Developing';
+  }
+
+  // Monitoring: Under active watch
+  if (sourceCount >= 2 || hoursSinceLastUpdate <= 48) {
+    return 'Monitoring';
+  }
+
+  return 'Emerging';
+}
+
+/**
+ * Re-export confidence calculator for backward compatibility
  */
 export function calculateConfidenceScore(params: {
   sourceCount: number;
@@ -72,55 +142,19 @@ export function calculateConfidenceScore(params: {
   hasContradictions?: boolean;
   hoursSinceLastUpdate?: number;
 }): { score: number; explanation: string; breakdown: string[] } {
-  const {
-    sourceCount = 1,
-    officialCount = 0,
-    nationalCount = 0,
-    localCount = 0,
-    hasContradictions = false,
-    hoursSinceLastUpdate = 12
-  } = params;
-
-  let base = 50;
-
-  // Source Volume weight (up to +25)
-  const volumeWeight = Math.min(25, sourceCount * 5);
-  base += volumeWeight;
-
-  // Official Source presence (up to +15)
-  const officialWeight = officialCount > 0 ? 15 : 0;
-  base += officialWeight;
-
-  // Diversity weight (up to +10)
-  let diversityWeight = 0;
-  if (nationalCount > 0 && localCount > 0) diversityWeight = 10;
-  else if (nationalCount > 0 || localCount > 0) diversityWeight = 5;
-  base += diversityWeight;
-
-  // Recency bonus / penalty
-  if (hoursSinceLastUpdate <= 24) base += 5;
-  else if (hoursSinceLastUpdate > 72) base -= 10;
-
-  // Contradiction penalty
-  if (hasContradictions) base -= 15;
-
-  const finalScore = Math.max(20, Math.min(98, Math.round(base)));
-
-  const breakdown = [
-    `${sourceCount} sumber rujukan terverifikasi`,
-    officialCount > 0 ? `${officialCount} rilis resmi instansi` : 'Belum ada rilis resmi instansi',
-    nationalCount > 0 ? `${nationalCount} media massa nasional` : '',
-    localCount > 0 ? `${localCount} liputan media lokal daerah` : '',
-    hasContradictions ? 'Terdapat ketidaksesuaian data antar-sumber' : 'Informasi konsisten tanpa kontradiksi mayor',
-    hoursSinceLastUpdate <= 24 ? 'Data diperbarui dalam 24 jam terakhir' : 'Pembaruan data > 24 jam lalu'
-  ].filter(Boolean);
-
-  const explanation = `${finalScore}/100: Berdasarkan ${sourceCount} sumber independen (${officialCount} resmi, ${nationalCount} nasional, ${localCount} lokal) dengan tingkat konsistensi ${hasContradictions ? 'terdapat catatan discrepancy' : 'tinggi'}.`;
+  const res = calculateConfidence({
+    sourceCount: params.sourceCount,
+    officialCount: params.officialCount,
+    nationalCount: params.nationalCount,
+    localCount: params.localCount,
+    contradictionCount: params.hasContradictions ? 1 : 0,
+    hoursSinceLastUpdate: params.hoursSinceLastUpdate,
+  });
 
   return {
-    score: finalScore,
-    explanation,
-    breakdown
+    score: res.score,
+    explanation: res.explanation,
+    breakdown: res.factors.map(f => `${f.label}: ${f.value}`),
   };
 }
 
@@ -136,7 +170,7 @@ export function isHighImpactUnviral(issue: {
   mention_count?: number;
   sources_count?: number;
 }): boolean {
-  const isHighImpact = issue.impact_score >= 82;
+  const isHighImpact = issue.impact_score >= 80;
   const isSolidEvidence = issue.evidence_score >= 70;
   const isLowOrModerateMomentum = issue.momentum_score <= 82;
   const isLowMentionVolume = (issue.mention_count || 1) <= 15;
@@ -204,7 +238,13 @@ export function computeRadarPurwakarta(issues: Issue[]): RadarKecamatan[] {
     });
 
     const issuesCount = matching.length;
-    const priorityCount = matching.filter(i => i.priority_level === 'Tinggi' || i.impact_score >= 85).length;
+    const priorityCount = matching.filter(i => (i.priority_score && i.priority_score >= 85) || i.priority_level === 'Tinggi' || i.impact_score >= 85).length;
+    
+    // Last 24 hours detection
+    const newLast24h = matching.filter(i => {
+      const diffHours = (Date.now() - new Date(i.first_detected_at || i.last_updated_at).getTime()) / (1000 * 60 * 60);
+      return diffHours <= 24 || isNaN(diffHours);
+    }).length;
 
     // Dominant category
     const catFreq: Record<string, number> = {};
@@ -235,10 +275,12 @@ export function computeRadarPurwakarta(issues: Issue[]): RadarKecamatan[] {
       name: districtName,
       issuesCount,
       priorityCount,
+      newLast24h,
       dominantCategory: dominantCat,
       topIssueTitle: topIssue ? topIssue.title : 'Pemantauan berkala wilayah',
       topIssueSlug: topIssue ? topIssue.slug : '',
       momentumGrowth: `↑ ${avgMomentum}%`,
+      latestUpdate: topIssue?.last_activity_at || topIssue?.last_updated_at || undefined,
       status
     };
   });

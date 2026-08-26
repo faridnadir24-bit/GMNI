@@ -12,6 +12,8 @@ import {
 import StatCards from '@/components/dashboard/StatCards';
 import PriorityBoard from '@/components/dashboard/PriorityBoard';
 import UnviralPrioritySection from '@/components/dashboard/UnviralPrioritySection';
+import EmergingIssuesSection from '@/components/dashboard/EmergingIssuesSection';
+import FastChangingIssuesSection from '@/components/dashboard/FastChangingIssuesSection';
 import TerritorySelector, { TerritoryScope } from '@/components/ui/TerritorySelector';
 import LocationBadge from '@/components/ui/LocationBadge';
 import CategoryBadge from '@/components/ui/CategoryBadge';
@@ -98,10 +100,14 @@ export default function DashboardPage() {
       {/* ROW 2: Summary Metrics Strip */}
       <StatCards />
 
-      {/* ROW 3: Isu yang Patut Diperhatikan (Belum Viral · Dampak Tinggi) */}
+      {/* ROW 3: Emerging Issues (< 24h) & Fast Changing Issues */}
+      <EmergingIssuesSection issues={filteredIssues} />
+      <FastChangingIssuesSection issues={filteredIssues} />
+
+      {/* ROW 4: Isu yang Patut Diperhatikan (Belum Viral · Dampak Tinggi) */}
       <UnviralPrioritySection issues={filteredIssues} />
 
-      {/* ROW 4: Main Issue List + Side Panel */}
+      {/* ROW 5: Main Issue List + Side Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Main: Priority Issues Board */}

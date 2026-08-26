@@ -3,33 +3,35 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
-  Radio, 
-  Search, 
-  ArrowUpRight, 
   RefreshCw, 
-  ExternalLink,
-  MessageSquare,
-  TrendingUp,
-  Layers,
-  Filter,
-  CheckCircle2,
-  Calendar,
-  Building2,
-  ArrowRight,
+  ExternalLink, 
+  Search, 
+  Filter, 
+  Layers, 
+  Radio, 
+  AlertCircle, 
+  CheckCircle2, 
+  TrendingUp, 
+  Clock, 
+  FileText,
+  Check,
+  GitCommit,
   Sparkles,
-  FileText
+  ShieldCheck,
+  ArrowRight
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { mockSignals } from '@/data/mockSignals';
-import LocationBadge from '@/components/ui/LocationBadge';
-import CategoryBadge from '@/components/ui/CategoryBadge';
-import StatusBadge from '@/components/ui/StatusBadge';
 import { formatDateIndo } from '@/lib/utils';
-import { Article, Issue } from '@/types';
+import CategoryBadge from '@/components/ui/CategoryBadge';
+import LocationBadge from '@/components/ui/LocationBadge';
+import StatusBadge from '@/components/ui/StatusBadge';
+import ScoreIndicator from '@/components/ui/ScoreIndicator';
+import { mockSignals } from '@/data/mockSignals';
+import { IssueEvent } from '@/types';
 
 export default function PantauanPage() {
   const { issues, articles, syncLiveNews, isSyncingNews, lastSyncedTime } = useApp();
-  const [activeViewMode, setActiveViewMode] = useState<'articles' | 'issues' | 'signals'>('articles');
+  const [activeViewMode, setActiveViewMode] = useState<'articles' | 'issues' | 'changes'>('articles');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
@@ -71,14 +73,27 @@ export default function PantauanPage() {
     return matchQuery && matchCategory && matchLocation;
   });
 
-  // Filter Signals
-  const filteredSignals = mockSignals.filter(sig => {
-    const matchQuery = 
-      sig.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sig.keywords.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchLocation = locationFilter === 'all' || sig.location_tag.toLowerCase().includes(locationFilter.toLowerCase());
-    return matchQuery && matchLocation;
+  // Filter Changes (all events combined)
+  const allEvents: { event: IssueEvent; issueSlug: string; issueTitle: string }[] = [];
+  issues.forEach(iss => {
+    (iss.events || []).forEach(ev => {
+      allEvents.push({
+        event: ev,
+        issueSlug: iss.slug,
+        issueTitle: iss.title,
+      });
+    });
   });
+
+  const filteredChanges = allEvents
+    .filter(item => {
+      const matchQuery = 
+        item.event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.issueTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.event.description && item.event.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchQuery;
+    })
+    .sort((a, b) => new Date(b.event.event_at).getTime() - new Date(a.event.event_at).getTime());
 
   const categories = ['all', 'Agraria', 'Ketenagakerjaan', 'Lingkungan', 'Pendidikan', 'Pemerintahan', 'Keamanan', 'Ekonomi', 'Sosial'];
 
@@ -111,7 +126,7 @@ export default function PantauanPage() {
             Pusat Pantauan Berita & Isu Kebijakan
           </h1>
           <p className="text-xs text-ink-secondary">
-            Aliran artikel berita terverifikasi, pengelompokan isu, dan sinyal percakapan publik.
+            Aliran artikel berita terverifikasi, pengelompokan isu (ARTIKEL BARU ≠ ISU BARU), dan rekam jejak perubahan.
           </p>
         </div>
 
@@ -119,7 +134,7 @@ export default function PantauanPage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="text-right text-[11px] font-mono text-ink-tertiary">
             <div>Terakhir Sinkron: {lastSyncedTime ? `${lastSyncedTime} WIB` : '18:42 WIB'}</div>
-            <div className="text-emerald-700 font-sans font-medium">● Pipeline Aktif (Near Real-Time)</div>
+            <div className="text-emerald-700 font-sans font-medium">● 9/9 Feed RSS Aktif (Pipeline Terhubung)</div>
           </div>
           <button
             onClick={handleManualSync}
@@ -134,7 +149,7 @@ export default function PantauanPage() {
 
       {/* DUAL MODE TOGGLE STRIP */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface p-2 rounded-card border border-border shadow-subtle">
-        {/* Toggle [ Berita ] [ Isu ] [ Sinyal Publik ] */}
+        {/* Toggle [ Berita ] [ Isu ] [ Perubahan ] */}
         <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-btn w-full sm:w-auto">
           <button
             onClick={() => setActiveViewMode('articles')}
@@ -144,7 +159,7 @@ export default function PantauanPage() {
                 : 'text-ink-secondary hover:text-ink-primary'
             }`}
           >
-            Berita Terkini ({filteredArticles.length})
+            Berita Masuk ({filteredArticles.length})
           </button>
           <button
             onClick={() => setActiveViewMode('issues')}
@@ -154,17 +169,17 @@ export default function PantauanPage() {
                 : 'text-ink-secondary hover:text-ink-primary'
             }`}
           >
-            Isu Berkembang ({filteredIssues.length})
+            Isu Aktif ({filteredIssues.length})
           </button>
           <button
-            onClick={() => setActiveViewMode('signals')}
+            onClick={() => setActiveViewMode('changes')}
             className={`flex-1 sm:flex-initial px-4 py-1.5 rounded text-xs font-semibold transition-all ${
-              activeViewMode === 'signals'
+              activeViewMode === 'changes'
                 ? 'bg-white text-ink-primary shadow-sm'
                 : 'text-ink-secondary hover:text-ink-primary'
             }`}
           >
-            Sinyal Publik ({filteredSignals.length})
+            Perubahan Terkini ({filteredChanges.length})
           </button>
         </div>
 
@@ -219,7 +234,7 @@ export default function PantauanPage() {
               <FileText className="w-8 h-8 text-ink-tertiary mx-auto" />
               <div className="text-sm font-semibold text-ink-primary">Belum ada artikel berita tersinkronisasi.</div>
               <p className="text-xs text-ink-secondary max-w-sm mx-auto">
-                Klik tombol &quot;Tarik Berita&quot; di atas untuk menarik ratusan artikel dari Antara, Tempo, CNN, dan Republika.
+                Klik tombol &quot;Tarik Berita&quot; di atas untuk menarik artikel berita dari Antara, Tempo, CNN, dan Republika.
               </p>
               <button
                 onClick={handleManualSync}
@@ -249,52 +264,36 @@ export default function PantauanPage() {
                       </span>
                     </div>
 
-                    <h3 className="text-sm font-bold text-ink-primary leading-snug">
-                      <a
-                        href={art.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-primary transition-colors inline-flex items-baseline gap-1"
-                      >
-                        <span>{art.title}</span>
-                        <ExternalLink className="w-3 h-3 text-ink-tertiary shrink-0 inline" />
-                      </a>
+                    <h3 className="text-xs sm:text-sm font-bold text-ink-primary leading-snug">
+                      {art.title}
                     </h3>
 
-                    {art.summary && (
-                      <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
-                        {art.summary}
-                      </p>
-                    )}
+                    <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
+                      {art.summary}
+                    </p>
                   </div>
 
-                  {/* LINK TO RELATED ISSUE */}
-                  <div className="pt-2 border-t border-border/80 flex items-center justify-between text-xs">
-                    <div className="text-[11px] truncate max-w-[240px] sm:max-w-xs">
-                      {art.issue_slug || art.issue_id ? (
-                        <div className="flex items-center gap-1.5 text-ink-secondary">
-                          <span className="text-ink-tertiary">Terkait Isu:</span>
-                          <Link
-                            href={`/isu/${art.issue_slug || art.issue_id}`}
-                            className="font-semibold text-primary hover:underline truncate"
-                          >
-                            {art.issue_title || 'Lihat Isu'}
-                          </Link>
-                        </div>
+                  <div className="pt-2 border-t border-border flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-ink-tertiary">
+                      {art.issue_id ? (
+                        <span className="text-emerald-700 font-semibold inline-flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          <span>Tergabung ke Isu: {art.issue_title || 'Isu Terkait'}</span>
+                        </span>
                       ) : (
-                        <span className="text-stone-400 italic">Belum dikelompokkan ke isu</span>
+                        <span>Siap dikelompokkan ke isu kebijakan</span>
                       )}
                     </div>
 
-                    {art.issue_slug && (
-                      <Link
-                        href={`/isu/${art.issue_slug}`}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-ink-primary hover:text-primary transition-colors shrink-0"
-                      >
-                        <span>Kajian Isu</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </Link>
-                    )}
+                    <a
+                      href={art.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+                    >
+                      <span>Buka Berita Asli</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
               ))}
@@ -303,54 +302,53 @@ export default function PantauanPage() {
         </div>
       )}
 
-      {/* VIEW 2: ISU BERKEMBANG */}
+      {/* VIEW 2: ISU AKTIF */}
       {activeViewMode === 'issues' && (
         <div className="space-y-3">
           <div className="text-xs font-semibold text-ink-secondary flex items-center justify-between">
-            <span>Daftar Isu Hasil Clustering & Evidensi Kebijakan</span>
+            <span>Daftar Isu Kebijakan yang Sedang Dipantau</span>
             <span className="font-mono text-[11px]">{filteredIssues.length} isu aktif</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {filteredIssues.map(issue => (
               <div
                 key={issue.id}
-                className="bg-surface rounded-card border border-border p-4 hover:border-stone-400 transition-colors flex flex-col justify-between space-y-3 shadow-subtle"
+                className="bg-surface rounded-card border border-border p-5 hover:border-stone-400 transition-all flex flex-col justify-between space-y-4 shadow-subtle group"
               >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <LocationBadge location={issue.location} district={issue.district} size="sm" />
-                      <CategoryBadge category={issue.category} />
-                      <StatusBadge status={issue.status} />
-                    </div>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <StatusBadge status={issue.status} />
                     <span className="text-[11px] font-mono text-ink-tertiary">
-                      {issue.sources_count} Sumber Terkait
+                      Confidence: {issue.confidence_score || 75}%
                     </span>
                   </div>
 
-                  <Link href={`/isu/${issue.slug}`} className="group block">
-                    <h3 className="text-sm font-bold text-ink-primary group-hover:text-primary transition-colors line-clamp-2">
+                  <Link href={`/isu/${issue.slug}`} className="block group-hover:text-primary transition-colors">
+                    <h3 className="text-sm font-bold text-ink-primary line-clamp-2 leading-snug">
                       {issue.title}
                     </h3>
                   </Link>
 
-                  <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-ink-secondary line-clamp-3 leading-relaxed">
                     {issue.description}
                   </p>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <LocationBadge location={issue.location} district={issue.district} size="sm" />
+                    <CategoryBadge category={issue.category} />
+                  </div>
                 </div>
 
-                <div className="pt-2 border-t border-border/80 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3 text-[11px] font-mono">
-                    <span>Impact: <strong className="text-primary">{issue.impact_score}</strong></span>
-                    <span>Confidence: <strong>{issue.confidence_score || 80}</strong></span>
-                  </div>
-
+                <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
+                  <span className="text-ink-tertiary text-[11px] font-mono">
+                    {issue.sources_count} Rujukan Media
+                  </span>
                   <Link
                     href={`/isu/${issue.slug}`}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                    className="font-semibold text-primary hover:underline inline-flex items-center gap-1"
                   >
-                    <span>Buka Isu</span>
+                    <span>Detail Isu</span>
                     <ArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
@@ -360,62 +358,60 @@ export default function PantauanPage() {
         </div>
       )}
 
-      {/* VIEW 3: SINYAL PUBLIK */}
-      {activeViewMode === 'signals' && (
-        <div className="space-y-3">
+      {/* VIEW 3: PERUBAHAN TERKINI (EVENTS TIMELINE) */}
+      {activeViewMode === 'changes' && (
+        <div className="space-y-4">
           <div className="text-xs font-semibold text-ink-secondary flex items-center justify-between">
-            <span>Sinyal Percakapan Warganet & Suara Akar Rumput</span>
-            <span className="font-mono text-[11px]">{filteredSignals.length} sinyal</span>
+            <span>Kronologi Perubahan & Informasi Baru yang Masuk ke Sistem</span>
+            <span className="font-mono text-[11px]">{filteredChanges.length} peristiwa tercatat</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filteredSignals.map(sig => (
-              <div
-                key={sig.id}
-                className="bg-surface rounded-card border border-border p-4 hover:border-stone-400 transition-colors flex flex-col justify-between space-y-3 shadow-subtle"
-              >
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-stone-100 font-semibold text-[10px] text-ink-primary border border-border">
-                        {sig.platform}
-                      </span>
-                      <LocationBadge location={sig.location_tag} size="sm" />
+          {filteredChanges.length === 0 ? (
+            <div className="bg-surface rounded-card border border-border p-12 text-center space-y-2">
+              <GitCommit className="w-8 h-8 text-ink-tertiary mx-auto" />
+              <div className="text-sm font-semibold text-ink-primary">Belum ada catatan peristiwa baru.</div>
+              <p className="text-xs text-ink-secondary">
+                Perubahan akan otomatis tercatat setiap kali artikel berita baru digabungkan ke dalam basis isu.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-surface rounded-card border border-border p-5 divide-y divide-border shadow-subtle">
+              {filteredChanges.map((item, idx) => (
+                <div key={idx} className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 rounded bg-stone-100 text-primary shrink-0 mt-0.5">
+                      <GitCommit className="w-4 h-4" />
                     </div>
-                    <span className="text-[10px] font-mono text-ink-tertiary">
-                      {formatDateIndo(sig.timestamp)}
-                    </span>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold text-ink-primary">{item.event.title}</span>
+                        {item.event.source_name && (
+                          <span className="px-1.5 py-0.5 rounded bg-stone-100 text-[10px] font-mono text-ink-secondary border border-border">
+                            {item.event.source_name}
+                          </span>
+                        )}
+                      </div>
+                      {item.event.description && (
+                        <p className="text-xs text-ink-secondary leading-relaxed">
+                          {item.event.description}
+                        </p>
+                      )}
+                      <div className="text-[11px] text-ink-tertiary font-mono">
+                        Terkait Isu:{' '}
+                        <Link href={`/isu/${item.issueSlug}`} className="text-primary hover:underline font-semibold font-sans">
+                          {item.issueTitle}
+                        </Link>
+                      </div>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-ink-primary leading-relaxed">
-                    &ldquo;{sig.content}&rdquo;
-                  </p>
-
-                  <div className="flex flex-wrap gap-1">
-                    {sig.keywords.map(k => (
-                      <span key={k} className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-ink-secondary border border-border">
-                        #{k}
-                      </span>
-                    ))}
+                  <div className="text-[11px] font-mono text-ink-tertiary shrink-0 sm:text-right">
+                    {formatDateIndo(item.event.event_at)}
                   </div>
                 </div>
-
-                <div className="pt-2 border-t border-border/80 flex items-center justify-between text-xs">
-                  <span className="text-[11px] text-ink-secondary">
-                    Sentimen: <strong className="text-primary">{sig.sentiment}</strong>
-                  </span>
-
-                  <Link
-                    href={`/isu?search=${encodeURIComponent(sig.keywords[0] || '')}`}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-                  >
-                    <span>Kaitkan ke Isu</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

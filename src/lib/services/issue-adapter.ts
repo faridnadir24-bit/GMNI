@@ -1,5 +1,19 @@
-import { Issue, Claim, Source, IssueStatus, IssueEvent, IssueSource, Contradiction, EvidenceBreakdown } from '@/types';
-import { calculatePriorityScore, calculateConfidenceScore, isHighImpactUnviral, explainMomentumIncrease, SOURCE_CREDIBILITY_MAP } from './issue-priority';
+import { 
+  Issue, 
+  Claim, 
+  Source, 
+  IssueStatus, 
+  IssueEvent, 
+  IssueSource, 
+  Contradiction, 
+  EvidenceBreakdown,
+  IssueChangeSummary,
+  ConfidenceExplanation,
+  EvidenceMatrixItem,
+  ChangeSeverity
+} from '@/types';
+import { calculatePriorityScore, isHighImpactUnviral, explainMomentumIncrease, SOURCE_CREDIBILITY_MAP } from './issue-priority';
+import { calculateConfidence } from './confidence-engine';
 
 export interface SupabaseIssueRow {
   id: string;
@@ -54,7 +68,7 @@ export function mapSupabaseRowToIssue(row: SupabaseIssueRow): Issue {
 
   // Breakdown of sources
   const sourceNames = row.source_names || ['Media Terkini'];
-  const officialCount = sourceNames.filter(s => s.toLowerCase().includes('antara') || s.toLowerCase().includes('pemkab') || s.toLowerCase().includes('resmi')).length;
+  const officialCount = sourceNames.filter(s => s.toLowerCase().includes('antara') || s.toLowerCase().includes('pemkab') || s.toLowerCase().includes('resmi') || s.toLowerCase().includes('dinas') || s.toLowerCase().includes('polres')).length;
   const localCount = sourceNames.filter(s => s.toLowerCase().includes('radar') || s.toLowerCase().includes('purwakarta')).length;
   const nationalCount = Math.max(0, sourceNames.length - officialCount - localCount);
 
@@ -67,13 +81,18 @@ export function mapSupabaseRowToIssue(row: SupabaseIssueRow): Issue {
     total: row.source_count || sourceNames.length
   };
 
-  const confidenceCalc = calculateConfidenceScore({
+  const hoursSinceLastUpdate = row.last_activity_at || row.updated_at
+    ? Math.max(1, (Date.now() - new Date(row.last_activity_at || row.updated_at || 0).getTime()) / (1000 * 60 * 60))
+    : 6;
+
+  const confidenceExplanation = calculateConfidence({
     sourceCount: row.source_count || sourceNames.length,
     officialCount,
     nationalCount,
     localCount,
-    hasContradictions: Boolean(row.unverified && row.unverified.length > 0),
-    hoursSinceLastUpdate: 6
+    contradictionCount: (row.unverified && row.unverified.length > 0) ? 1 : 0,
+    hoursSinceLastUpdate,
+    hasVerifiedFacts: Boolean(row.verified_facts && row.verified_facts.length > 0),
   });
 
   const priorityScore = row.priority_score ?? calculatePriorityScore({
@@ -81,11 +100,12 @@ export function mapSupabaseRowToIssue(row: SupabaseIssueRow): Issue {
     urgency_score: urgency,
     evidence_score: evidence,
     momentum_score: momentum,
+    confidence_score: confidenceExplanation.score,
     location: locationStr,
     is_purwakarta_priority: isPurwakarta
   });
 
-  const confidenceScore = row.confidence_score ?? confidenceCalc.score;
+  const confidenceScore = row.confidence_score ?? confidenceExplanation.score;
 
   // Build events
   const events: IssueEvent[] = (row.events || []).map(e => ({
@@ -143,6 +163,67 @@ export function mapSupabaseRowToIssue(row: SupabaseIssueRow): Issue {
     });
   }
 
+  // Build Evidence Matrix
+  const evidenceMatrix: EvidenceMatrixItem[] = [];
+  (row.verified_facts || []).forEach((fact, idx) => {
+    evidenceMatrix.push({
+      id: `ev-fact-${row.id}-${idx}`,
+      statement: fact,
+      type: 'fact',
+      source_name: sourceNames[idx % sourceNames.length] || 'Media Terverifikasi',
+      source_type: officialCount > 0 ? 'official' : 'national_media',
+      verification_status: 'Supported',
+      published_at: row.last_activity_at || row.updated_at || new Date().toISOString(),
+    });
+  });
+  (row.claims || []).forEach((claim, idx) => {
+    evidenceMatrix.push({
+      id: `ev-claim-${row.id}-${idx}`,
+      statement: claim,
+      type: 'claim',
+      source_name: sourceNames[(idx + 1) % sourceNames.length] || 'Narasumber / Pihak Terkait',
+      source_type: 'national_media',
+      verification_status: 'Partially Supported',
+      published_at: row.last_activity_at || row.updated_at || new Date().toISOString(),
+    });
+  });
+  (row.unverified || []).forEach((unv, idx) => {
+    evidenceMatrix.push({
+      id: `ev-unv-${row.id}-${idx}`,
+      statement: unv,
+      type: 'unverified',
+      source_name: 'Celah Informasi Lapangan',
+      source_type: 'unknown',
+      verification_status: 'Unverified',
+      published_at: row.last_activity_at || row.updated_at || new Date().toISOString(),
+    });
+  });
+
+  // What Changed summary delta
+  const recentEvents = events.slice(-3);
+  const whatChanged: IssueChangeSummary = {
+    has_changes: events.length > 1,
+    last_changed_at: row.last_activity_at || row.updated_at || new Date().toISOString(),
+    change_severity: officialCount > 0 ? 'MEDIUM' : 'LOW',
+    new_sources_count: Math.max(1, sourceNames.length),
+    new_official_statements: officialCount,
+    new_facts_count: (row.verified_facts || []).length,
+    new_claims_count: (row.claims || []).length,
+    confidence_delta: {
+      before: Math.max(40, confidenceScore - 5),
+      after: confidenceScore,
+    },
+    momentum_delta: {
+      before: Math.max(30, momentum - 8),
+      after: momentum,
+    },
+    priority_delta: {
+      before: Math.max(50, priorityScore - 4),
+      after: priorityScore,
+    },
+    change_highlights: recentEvents.map(e => e.title),
+  };
+
   const issueBase: Issue = {
     id: row.id,
     slug: row.slug,
@@ -179,6 +260,9 @@ export function mapSupabaseRowToIssue(row: SupabaseIssueRow): Issue {
     evidence_breakdown: evidenceBreakdown,
     events,
     contradictions,
+    what_changed: whatChanged,
+    confidence_meta: confidenceExplanation,
+    evidence_matrix: evidenceMatrix,
     summary_ai: {
       what_happened: row.summary || row.title,
       why_important: `Isu ini memiliki dampak langsung terhadap stabilitas sosial dan perlindungan hak rakyat di ${locationStr}.`,
@@ -241,8 +325,8 @@ export function extractClaimsFromRow(row: SupabaseIssueRow): Claim[] {
       type: 'fact',
       source_name: primarySource,
       source_type: 'Official',
-      confidence_score: 95,
-      verification_notes: 'Terkonfirmasi melalui rilis berita terverifikasi.',
+      confidence_score: 90,
+      verification_notes: 'Fakta terverifikasi dari rilis data lapangan',
     });
   });
 
@@ -252,23 +336,23 @@ export function extractClaimsFromRow(row: SupabaseIssueRow): Claim[] {
       issue_id: row.id,
       content: claim,
       type: 'claim',
-      source_name: primarySource,
+      source_name: (row.source_names && row.source_names[1]) || primarySource,
       source_type: 'Media',
-      confidence_score: 65,
-      verification_notes: 'Pernyataan sepihak narasumber/korporasi, butuh konfirmasi lanjutan.',
+      confidence_score: 70,
+      verification_notes: 'Pernyataan sepihak narasumber/media',
     });
   });
 
-  (row.unverified || []).forEach((unver, idx) => {
+  (row.unverified || []).forEach((unv, idx) => {
     claimsList.push({
-      id: `unver-${row.id}-${idx}`,
+      id: `unv-${row.id}-${idx}`,
       issue_id: row.id,
-      content: unver,
+      content: unv,
       type: 'unverified',
-      source_name: primarySource,
-      source_type: 'Social',
-      confidence_score: 35,
-      verification_notes: 'Informasi awal belum terverifikasi secara formal.',
+      source_name: 'Posko Aduan / Observasi Lapangan',
+      source_type: 'Field Report',
+      confidence_score: 50,
+      verification_notes: 'Memerlukan konfirmasi faktual lebih lanjut',
     });
   });
 
@@ -276,26 +360,25 @@ export function extractClaimsFromRow(row: SupabaseIssueRow): Claim[] {
 }
 
 export function extractSourcesFromRow(row: SupabaseIssueRow): Source[] {
-  const sourcesList: Source[] = [];
   const urls = row.source_urls || [];
   const names = row.source_names || [];
 
-  urls.forEach((url, idx) => {
-    const sName = names[idx] || `Media Rujukan ${idx + 1}`;
-    const sType = sName.toLowerCase().includes('antara') || sName.toLowerCase().includes('pemkab') ? 'Official Source' : 'Established Media';
-    sourcesList.push({
-      id: `src-${row.id}-${idx}`,
-      issue_id: row.id,
-      title: `Liputan Terkait: ${row.title}`,
-      url: url,
-      source_name: sName,
-      source_type: sType,
-      credibility_score: sType === 'Official Source' ? 95 : 85,
-      published_at: row.published_at || row.detected_at || new Date().toISOString(),
-      summary: row.summary || 'Rujukan pemberitaan media mengenai isu terkait.',
-      author_or_institution: sName,
-    });
-  });
+  return urls.map((url, idx) => {
+    const name = names[idx] || (names.length > 0 ? names[0] : 'Media Massa');
+    const isOfficial = name.toLowerCase().includes('antara') || name.toLowerCase().includes('pemkab') || name.toLowerCase().includes('resmi');
+    const isLocal = name.toLowerCase().includes('radar') || name.toLowerCase().includes('purwakarta');
 
-  return sourcesList;
+    return {
+      id: `source-${row.id}-${idx}`,
+      issue_id: row.id,
+      title: `Rujukan Berita: ${name}`,
+      url,
+      source_name: name,
+      source_type: isOfficial ? 'Official Source' : isLocal ? 'Local Media' : 'Established Media',
+      credibility_score: isOfficial ? 95 : isLocal ? 80 : 88,
+      published_at: row.first_detected_at || row.detected_at || new Date().toISOString(),
+      summary: `Liputan terkait ${row.title} oleh ${name}`,
+      author_or_institution: name,
+    };
+  });
 }

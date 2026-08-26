@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   Scale,
   ShieldCheck,
-  Layers
+  Layers,
+  GitCommit
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { formatDateIndo } from '@/lib/utils';
@@ -24,6 +25,9 @@ import CategoryBadge from '@/components/ui/CategoryBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import ScoreIndicator from '@/components/ui/ScoreIndicator';
 
+import WhatChangedSection from '@/components/issue/WhatChangedSection';
+import ConfidenceExplainer from '@/components/issue/ConfidenceExplainer';
+import ContradictionSection from '@/components/issue/ContradictionSection';
 import FactVsClaim from '@/components/issue/FactVsClaim';
 import SourcePanel from '@/components/issue/SourcePanel';
 import EvidenceLocker from '@/components/issue/EvidenceLocker';
@@ -38,7 +42,6 @@ import KajianDocModal from '@/components/ai/KajianDocModal';
 import { BahanKajianDocument, Issue } from '@/types';
 import { mockKajianDocs } from '@/data/mockKajian';
 import { mockActors } from '@/data/mockActors';
-import { mockTimelineEvents } from '@/data/mockTimeline';
 
 export default function IssueDetailPage() {
   const params = useParams();
@@ -109,7 +112,6 @@ export default function IssueDetailPage() {
   const issueClaims = claims.filter(c => c.issue_id === issue.id);
   const issueSources = sources.filter(s => s.issue_id === issue.id);
   const issueActors = mockActors.filter(a => a.issue_id === issue.id);
-  const issueTimeline = issue.events && issue.events.length > 0 ? issue.events : [];
   const isSaved = savedIssueIds.includes(issue.id);
 
   const handleOpenKajian = () => {
@@ -226,6 +228,7 @@ export default function IssueDetailPage() {
           <LocationBadge location={issue.location} district={issue.district} />
           <CategoryBadge category={issue.category} />
           <StatusBadge status={issue.status} />
+          <ConfidenceExplainer confidenceMeta={issue.confidence_meta} score={issue.confidence_score} />
           {issue.is_unviral_priority && (
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
               Belum Viral · Dampak Tinggi
@@ -253,7 +256,13 @@ export default function IssueDetailPage() {
         </div>
       </div>
 
-      {/* METRIC SCORES CARDS & CONFIDENCE BREAKDOWN */}
+      {/* APA YANG BERUBAH? (CHANGE DETECTION MODULE) */}
+      <WhatChangedSection 
+        changeSummary={issue.what_changed} 
+        lastUpdatedAt={issue.last_updated_at} 
+      />
+
+      {/* METRIC SCORES CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-surface rounded-card border border-border p-4 shadow-subtle space-y-1">
           <span className="text-[10px] uppercase font-bold text-ink-tertiary">Impact Score</span>
@@ -279,6 +288,9 @@ export default function IssueDetailPage() {
           <p className="text-[10px] text-ink-tertiary">Urgensi advokasi GMNI</p>
         </div>
       </div>
+
+      {/* CONTRADICTION & DATA DISCREPANCY MODULE */}
+      <ContradictionSection contradictions={issue.contradictions} />
 
       {/* MODULE: MENGAPA ISU INI MENINGKAT? */}
       {issue.why_rising && (
@@ -306,45 +318,15 @@ export default function IssueDetailPage() {
         </div>
       )}
 
-      {/* CONTRADICTION WARNING (IF ANY) */}
-      {issue.contradictions && issue.contradictions.length > 0 && (
-        <div className="bg-amber-50/70 border border-amber-200 rounded-card p-5 space-y-3">
-          <div className="flex items-center gap-2 text-amber-900">
-            <AlertTriangle className="w-4 h-4 text-amber-700" />
-            <h3 className="text-sm font-bold uppercase tracking-wider">
-              Catatan Discrepancy & Kontradiksi Data Antar-Sumber
-            </h3>
-          </div>
-
-          <div className="space-y-2">
-            {issue.contradictions.map(contra => (
-              <div key={contra.id} className="p-3 bg-white rounded border border-amber-200/80 text-xs space-y-1.5">
-                <div className="font-semibold text-ink-primary">{contra.topic}</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
-                  <div className="p-2 bg-stone-50 rounded border border-border">
-                    <span className="font-bold block text-ink-secondary">{contra.source_a.source_name}:</span>
-                    &ldquo;{contra.source_a.statement}&rdquo;
-                  </div>
-                  <div className="p-2 bg-stone-50 rounded border border-border">
-                    <span className="font-bold block text-ink-secondary">{contra.source_b.source_name}:</span>
-                    &ldquo;{contra.source_b.statement}&rdquo;
-                  </div>
-                </div>
-                <p className="text-[11px] text-amber-900 pt-1 italic">
-                  Analisis AI: {contra.discrepancy_explanation}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* MAIN TWO-COLUMN CONTENT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* LEFT COLUMN: EVIDENCE & FACT ANALYSIS (8 Cols) */}
         <div className="lg:col-span-8 space-y-8">
           
+          {/* FACT VS CLAIM */}
+          <FactVsClaim issueId={issue.id} claims={issueClaims} />
+
           {/* EVIDENCE LOCKER */}
           <EvidenceLocker
             sources={issueSources}
@@ -354,9 +336,6 @@ export default function IssueDetailPage() {
 
           {/* ACTIVITY TIMELINE (PERKEMBANGAN ISU) */}
           <IssueEventsTimeline events={issue.events} />
-
-          {/* FACT VS CLAIM */}
-          <FactVsClaim issueId={issue.id} claims={issueClaims} />
 
           {/* AI SUMMARIZER */}
           <AISummarizer summary={issue.summary_ai} />

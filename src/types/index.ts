@@ -137,14 +137,67 @@ export interface Contradiction {
   discrepancy_explanation: string;
 }
 
+export type ChangeSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export type ChangeType = 
+  | 'NEW_FACT' 
+  | 'NEW_CLAIM' 
+  | 'NEW_OFFICIAL_STATEMENT' 
+  | 'NEW_ACTOR' 
+  | 'NEW_LOCATION' 
+  | 'NEW_EVENT' 
+  | 'NEW_POLICY_RESPONSE' 
+  | 'NEW_DATA' 
+  | 'CONTRADICTION' 
+  | 'STATUS_CHANGE' 
+  | 'MOMENTUM_CHANGE';
+
+export interface IssueChangeSummary {
+  has_changes: boolean;
+  last_changed_at: string;
+  change_severity: ChangeSeverity;
+  new_sources_count: number;
+  new_official_statements: number;
+  new_facts_count: number;
+  new_claims_count: number;
+  confidence_delta?: { before: number; after: number };
+  momentum_delta?: { before: number; after: number };
+  priority_delta?: { before: number; after: number };
+  change_highlights: string[];
+}
+
+export interface ConfidenceExplanation {
+  score: number;
+  level: 'Tinggi' | 'Sedang' | 'Awal';
+  explanation: string;
+  factors: { label: string; value: string; positive: boolean }[];
+  source_diversity_count: number;
+  official_sources_count: number;
+  independent_sources_count: number;
+  contradictions_count: number;
+  freshness_status: 'Sangat Baru' | 'Terbaru' | 'Perlu Pembaruan' | 'Stale';
+}
+
+export interface EvidenceMatrixItem {
+  id: string;
+  statement: string;
+  type: 'fact' | 'claim' | 'unverified';
+  source_name: string;
+  source_type: NormalizedSourceType;
+  verification_status: 'Supported' | 'Partially Supported' | 'Conflicting' | 'Unverified';
+  published_at: string;
+}
+
 export interface RadarKecamatan {
   name: string;
   issuesCount: number;
   priorityCount: number;
+  newLast24h?: number;
   dominantCategory: string;
   topIssueTitle: string;
   topIssueSlug: string;
   momentumGrowth: string;
+  latestUpdate?: string;
   status: 'Kritis' | 'Tinggi' | 'Sedang' | 'Stabil';
 }
 
@@ -194,6 +247,9 @@ export interface Issue {
     trend_status: 'Naik' | 'Stabil' | 'Menurun';
     ai_commentary: string;
   };
+  what_changed?: IssueChangeSummary;
+  confidence_meta?: ConfidenceExplanation;
+  evidence_matrix?: EvidenceMatrixItem[];
 }
 
 export interface Claim {
