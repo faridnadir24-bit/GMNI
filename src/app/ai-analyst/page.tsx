@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
   Sparkles, 
@@ -39,18 +40,24 @@ function AIAnalystContent() {
   const [activeKajianDoc, setActiveKajianDoc] = useState<BahanKajianDocument | null>(null);
   const [copiedText, setCopiedText] = useState(false);
 
-  const selectedIssue = issues.find(i => i.id === selectedIssueId) || issues[0];
-  const issueSources = sources.filter(s => s.issue_id === selectedIssue.id);
-  const issueClaims = claims.filter(c => c.issue_id === selectedIssue.id);
+  const selectedIssue = issues.find(i => i.id === selectedIssueId || i.slug === selectedIssueId) || issues[0] || null;
+  const issueSources = selectedIssue ? sources.filter(s => s.issue_id === selectedIssue.id) : [];
+  const issueClaims = selectedIssue ? claims.filter(c => c.issue_id === selectedIssue.id) : [];
 
   useEffect(() => {
-    handleRunAction(activeAction);
-  }, [selectedIssueId, activeAction]);
+    if (selectedIssue) {
+      handleRunAction(activeAction);
+    }
+  }, [selectedIssueId, activeAction, selectedIssue]);
 
   const handleRunAction = (actionKey: string) => {
+    if (!selectedIssue) {
+      setAnalysisResult(null);
+      return;
+    }
     setIsLoading(true);
     setTimeout(() => {
-      const res = runAIAnalysis(selectedIssueId, actionKey, selectedIssue, issueSources, issueClaims);
+      const res = runAIAnalysis(selectedIssue.id, actionKey, selectedIssue, issueSources, issueClaims);
       setAnalysisResult(res);
       setIsLoading(false);
     }, 150);
@@ -121,12 +128,30 @@ function AIAnalystContent() {
   };
 
   const handleCopyAnalysis = () => {
-    if (!analysisResult) return;
+    if (!analysisResult || !selectedIssue) return;
     const textToCopy = `=== ${analysisResult.title} ===\nIsu: ${selectedIssue.title}\nWilayah: ${selectedIssue.location}\n\n${analysisResult.content.overview || ''}\n\n${analysisResult.content.points?.map(p => `- ${p.title}: ${p.desc}`).join('\n') || ''}`;
     navigator.clipboard.writeText(textToCopy);
     setCopiedText(true);
     setTimeout(() => setCopiedText(false), 2000);
   };
+
+  if (!selectedIssue) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
+        <Sparkles className="w-10 h-10 text-ink-tertiary mx-auto" />
+        <h2 className="text-base font-bold text-ink-primary">Belum Ada Isu Terpilih</h2>
+        <p className="text-xs text-ink-secondary max-w-sm mx-auto">
+          Belum ada isu terdata di sistem. Silakan sinkronkan berita dari dashboard atau pilih isu untuk dianalisis.
+        </p>
+        <Link
+          href="/dashboard"
+          className="inline-block py-2 px-4 bg-stone-900 text-white text-xs font-semibold rounded-btn hover:bg-stone-800"
+        >
+          Buka Dashboard Pantauan
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

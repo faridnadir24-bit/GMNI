@@ -48,6 +48,10 @@ function generateArticleHash(title: string, url: string): string {
   return crypto.createHash('sha256').update(`${title.trim().toLowerCase()}_${url.trim()}`).digest('hex');
 }
 
+// Concurrency lock to prevent overlapping sync executions
+let isSyncRunning = false;
+let lastSyncStartTime = 0;
+
 /**
  * UNIFIED NEWS SYNC ENGINE
  * Transforms raw news articles into structured policy intelligence issues.
@@ -57,7 +61,28 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
   const startTime = Date.now();
   const batchLimit = options.batchLimit || 15;
 
+  if (isSyncRunning && (Date.now() - lastSyncStartTime < 50000)) {
+    return {
+      success: true,
+      message: 'Proses sinkronisasi berita sedang aktif berjalan di thread lain. Menghindari duplikasi antrean.',
+      duration: '0.00s',
+      summary: {
+        totalRssFetched: 0,
+        newArticlesInserted: 0,
+        processedByAI: 0,
+        newIssuesCreated: 0,
+        existingIssuesUpdated: 0,
+        totalIssuesInDatabase: 0,
+      },
+      details: [],
+    };
+  }
+
+  isSyncRunning = true;
+  lastSyncStartTime = Date.now();
+
   if (!isSupabaseConfigured()) {
+    isSyncRunning = false;
     return {
       success: false,
       message: 'Supabase belum dikonfigurasi. Periksa kredensial di .env.local atau Vercel Settings.',
@@ -540,5 +565,7 @@ export async function runNewsSyncEngine(options: { batchLimit?: number } = {}): 
       },
       details: [],
     };
+  } finally {
+    isSyncRunning = false;
   }
 }

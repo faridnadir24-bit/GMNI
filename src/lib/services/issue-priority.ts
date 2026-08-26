@@ -196,9 +196,10 @@ export function computeRadarPurwakarta(issues: Issue[]): RadarKecamatan[] {
 
   return PURWAKARTA_DISTRICTS.map(districtName => {
     const matching = pwkIssues.filter(i => {
-      const matchDistrict = (i.district || '').toLowerCase().includes(districtName.toLowerCase().replace(' (kota)', ''));
-      const matchDesc = i.description.toLowerCase().includes(districtName.toLowerCase().replace(' (kota)', ''));
-      const matchTitle = i.title.toLowerCase().includes(districtName.toLowerCase().replace(' (kota)', ''));
+      const target = districtName.toLowerCase().replace(' (kota)', '');
+      const matchDistrict = (i.district || (i as any).sub_location || '').toLowerCase().includes(target);
+      const matchDesc = (i.description || (i as any).summary || '').toLowerCase().includes(target);
+      const matchTitle = (i.title || '').toLowerCase().includes(target);
       return matchDistrict || matchDesc || matchTitle;
     });
 

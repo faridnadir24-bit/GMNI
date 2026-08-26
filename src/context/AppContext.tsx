@@ -54,15 +54,15 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole>('researcher');
-  const [issues, setIssues] = useState<Issue[]>(mockIssues);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
-  const [claims, setClaims] = useState<Claim[]>(mockClaims);
-  const [sources, setSources] = useState<Source[]>(mockSources);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
   const [kajianDocs, setKajianDocs] = useState<BahanKajianDocument[]>(mockKajianDocs);
-  const [savedIssueIds, setSavedIssueIds] = useState<string[]>(['issue-pwk-01', 'issue-pwk-02']);
+  const [savedIssueIds, setSavedIssueIds] = useState<string[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isLoadingDb, setIsLoadingDb] = useState(false);
+  const [isLoadingDb, setIsLoadingDb] = useState(true);
   const [isSyncingNews, setIsSyncingNews] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatusInfo | null>(null);
@@ -122,8 +122,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const mappedSources = rows.flatMap(extractSourcesFromRow);
 
           setIssues(mappedIssues);
-          setClaims(mappedClaims.length > 0 ? mappedClaims : mockClaims);
-          setSources(mappedSources.length > 0 ? mappedSources : mockSources);
+          setClaims(mappedClaims);
+          setSources(mappedSources);
           setIsRealData(true);
         }
       } catch (err) {

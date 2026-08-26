@@ -35,7 +35,7 @@ import AISummarizer from '@/components/ai/AISummarizer';
 import MarhaenismAnalysis from '@/components/ai/MarhaenismAnalysis';
 import AIRecommender from '@/components/ai/AIRecommender';
 import KajianDocModal from '@/components/ai/KajianDocModal';
-import { BahanKajianDocument } from '@/types';
+import { BahanKajianDocument, Issue } from '@/types';
 import { mockKajianDocs } from '@/data/mockKajian';
 import { mockActors } from '@/data/mockActors';
 import { mockTimelineEvents } from '@/data/mockTimeline';
@@ -45,19 +45,71 @@ export default function IssueDetailPage() {
   const slug = params.slug as string;
 
   const { issues, claims, sources, savedIssueIds, toggleSaveIssue, addKajianDoc } = useApp();
+  const [dynamicSingleIssue, setDynamicSingleIssue] = useState<Issue | null>(null);
+  const [isLoadingSingle, setIsLoadingSingle] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [isKajianModalOpen, setIsKajianModalOpen] = useState(false);
   const [activeKajianDoc, setActiveKajianDoc] = useState<BahanKajianDocument | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const issue = issues.find(i => i.slug === slug || i.id === slug);
+  const issue = issues.find(i => i.slug === slug || i.id === slug) || dynamicSingleIssue;
+
+  React.useEffect(() => {
+    if (!issue && !fetchFailed) {
+      setIsLoadingSingle(true);
+      fetch(`/api/issues/${slug}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.success && json.data) {
+            setDynamicSingleIssue(json.data);
+          } else {
+            setFetchFailed(true);
+          }
+        })
+        .catch(() => setFetchFailed(true))
+        .finally(() => setIsLoadingSingle(false));
+    }
+  }, [slug, issue, fetchFailed]);
+
+  if (isLoadingSingle) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-ink-secondary">Memuat lembar fakta dan rujukan isu...</p>
+      </div>
+    );
+  }
+
   if (!issue) {
-    notFound();
+    if (fetchFailed) {
+      return (
+        <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
+          <AlertTriangle className="w-10 h-10 text-primary mx-auto" />
+          <h2 className="text-base font-bold text-ink-primary">Isu Tidak Ditemukan</h2>
+          <p className="text-xs text-ink-secondary max-w-sm mx-auto">
+            Isu yang Anda cari belum terdata atau telah diarsipkan dalam sistem pemantauan.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-block py-2 px-4 bg-stone-900 text-white text-xs font-semibold rounded-btn hover:bg-stone-800"
+          >
+            Kembali ke Pantauan
+          </Link>
+        </div>
+      );
+    }
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-ink-secondary">Menghubungkan ke basis data...</p>
+      </div>
+    );
   }
 
   const issueClaims = claims.filter(c => c.issue_id === issue.id);
   const issueSources = sources.filter(s => s.issue_id === issue.id);
   const issueActors = mockActors.filter(a => a.issue_id === issue.id);
-  const issueTimeline = issue.events || mockTimelineEvents.filter(t => t.issue_id === issue.id);
+  const issueTimeline = issue.events && issue.events.length > 0 ? issue.events : [];
   const isSaved = savedIssueIds.includes(issue.id);
 
   const handleOpenKajian = () => {
