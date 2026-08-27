@@ -8,7 +8,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
-  const { slug } = await context.params;
+  const resolvedParams = await context.params;
+  const rawSlug = resolvedParams?.slug || '';
+  const slug = decodeURIComponent(rawSlug);
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
@@ -18,12 +20,24 @@ export async function GET(
   }
 
   try {
-    // 1. Fetch issue by slug or ID
-    const { data: issueRow, error: issueErr } = await supabase
+    // 1. Fetch issue by exact slug first
+    let { data: issueRow, error: issueErr } = await supabase
       .from('issues')
       .select('*')
-      .or(`slug.eq.${slug},id.eq.${slug}`)
+      .eq('slug', slug)
       .maybeSingle();
+
+    // If not found by slug, try matching by ID
+    if (!issueRow) {
+      const resById = await supabase
+        .from('issues')
+        .select('*')
+        .eq('id', slug)
+        .maybeSingle();
+      
+      issueRow = resById.data;
+      issueErr = resById.error;
+    }
 
     if (issueErr || !issueRow) {
       return NextResponse.json(
