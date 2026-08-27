@@ -12,7 +12,8 @@ import {
 import { useApp } from '@/context/AppContext';
 import { Issue, IssueStatus } from '@/types';
 import { formatDateIndo } from '@/lib/utils';
-import TerritorySelector, { TerritoryScope } from '@/components/ui/TerritorySelector';
+import TerritorySelector from '@/components/ui/TerritorySelector';
+import { filterIssuesByTerritory, TerritoryScope } from '@/lib/services/territory-service';
 import LocationBadge from '@/components/ui/LocationBadge';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -52,39 +53,39 @@ export default function IssueDirectoryPage() {
     'Pemerintahan'
   ];
 
+  const territoryCounts = useMemo(() => ({
+    purwakarta: filterIssuesByTerritory(issues, 'purwakarta').length,
+    jabar: filterIssuesByTerritory(issues, 'jabar').length,
+    nasional: filterIssuesByTerritory(issues, 'nasional').length,
+  }), [issues]);
+
   const filteredIssues = useMemo(() => {
-    return issues.filter(issue => {
-      // Search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matches = 
-          issue.title.toLowerCase().includes(q) ||
-          issue.description.toLowerCase().includes(q) ||
-          issue.location.toLowerCase().includes(q) ||
-          issue.category.toLowerCase().includes(q);
-        if (!matches) return false;
-      }
+    // 1. Territory filtering via centralized territory service
+    let result = filterIssuesByTerritory(issues, selectedTerritory, selectedSubTerritory);
 
-      // Territory
-      if (selectedTerritory === 'purwakarta') {
-        const match = issue.location.toLowerCase().includes('purwakarta');
-        if (!match) return false;
-        if (selectedSubTerritory && selectedSubTerritory !== 'Semua Kecamatan') {
-          return issue.district?.toLowerCase().includes(selectedSubTerritory.toLowerCase());
-        }
-      } else if (selectedTerritory === 'jabar') {
-        if (!issue.province.toLowerCase().includes('jawa barat')) return false;
-      } else if (selectedTerritory === 'nasional') {
-        if (!issue.location.toLowerCase().includes('nasional')) return false;
-      }
+    // 2. Search query filtering
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(issue => 
+        issue.title.toLowerCase().includes(q) ||
+        issue.description.toLowerCase().includes(q) ||
+        issue.location.toLowerCase().includes(q) ||
+        issue.category.toLowerCase().includes(q)
+      );
+    }
 
-      // Status
-      if (selectedStatus !== 'all' && issue.status !== selectedStatus) {
-        return false;
-      }
+    // 3. Category filtering
+    if (selectedCategory !== 'all') {
+      result = result.filter(issue => issue.category.toLowerCase() === selectedCategory.toLowerCase());
+    }
 
-      return true;
-    }).sort((a, b) => {
+    // 4. Status filtering
+    if (selectedStatus !== 'all') {
+      result = result.filter(issue => issue.status === selectedStatus);
+    }
+
+    // 5. Sorting
+    return result.sort((a, b) => {
       if (sortBy === 'impact') return b.impact_score - a.impact_score;
       if (sortBy === 'urgency') return b.urgency_score - a.urgency_score;
       if (sortBy === 'momentum') return b.momentum_score - a.momentum_score;
@@ -195,6 +196,7 @@ export default function IssueDirectoryPage() {
         onSelectScope={setSelectedTerritory}
         selectedSubScope={selectedSubTerritory}
         onSelectSubScope={setSelectedSubTerritory}
+        counts={territoryCounts}
       />
 
       {/* Search & Filters Toolbar */}
@@ -257,10 +259,12 @@ export default function IssueDirectoryPage() {
           <div className="text-center py-16 bg-surface rounded-card border border-border space-y-2">
             <BookOpen className="w-6 h-6 text-ink-tertiary mx-auto" />
             <h3 className="text-xs sm:text-sm font-semibold text-ink-primary">
-              Tidak ada isu yang cocok dengan penapisan.
+              {selectedSubTerritory && selectedSubTerritory !== 'Semua Kabupaten / Kota' && selectedSubTerritory !== 'Semua Kecamatan' && selectedSubTerritory !== 'Seluruh Indonesia'
+                ? `Belum ada isu terpantau di ${selectedSubTerritory}.`
+                : `Tidak ada isu yang cocok dengan penapisan wilayah saat ini.`}
             </h3>
             <p className="text-xs text-ink-secondary">
-              Sesuaikan kata kunci pencarian atau ganti pilihan wilayah.
+              Ruang Isu terus memantau pembaruan berkala dari jaringan media rujukan dan laporan kader di lapangan.
             </p>
           </div>
         ) : (

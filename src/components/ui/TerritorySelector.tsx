@@ -1,15 +1,21 @@
 'use client';
 
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, Globe, Compass, Navigation } from 'lucide-react';
+import { WEST_JAVA_REGENCIES, PURWAKARTA_DISTRICTS, TerritoryScope } from '@/lib/services/territory-service';
 
-export type TerritoryScope = 'purwakarta' | 'jabar' | 'nasional';
+export type { TerritoryScope };
 
 interface TerritorySelectorProps {
   selectedScope: TerritoryScope;
   onSelectScope: (scope: TerritoryScope) => void;
   selectedSubScope?: string;
   onSelectSubScope?: (subScope: string) => void;
+  counts?: {
+    purwakarta?: number;
+    jabar?: number;
+    nasional?: number;
+  };
   className?: string;
 }
 
@@ -18,43 +24,37 @@ export default function TerritorySelector({
   onSelectScope,
   selectedSubScope,
   onSelectSubScope,
+  counts = {},
   className = '',
 }: TerritorySelectorProps) {
-  const primaryTerritories: { id: TerritoryScope; label: string; count: number }[] = [
-    { id: 'purwakarta', label: 'Purwakarta', count: 32 },
-    { id: 'jabar', label: 'Jawa Barat', count: 24 },
-    { id: 'nasional', label: 'Nasional', count: 71 },
+  const primaryTerritories: { id: TerritoryScope; label: string; icon: any; count?: number }[] = [
+    { id: 'purwakarta', label: 'Purwakarta', icon: MapPin, count: counts.purwakarta },
+    { id: 'jabar', label: 'Jawa Barat (27 Kab/Kota)', icon: Compass, count: counts.jabar },
+    { id: 'nasional', label: 'Nasional (38 Provinsi)', icon: Globe, count: counts.nasional },
   ];
 
   const subTerritories: Record<TerritoryScope, string[]> = {
+    all: ['Semua Wilayah'],
     purwakarta: [
       'Semua Kecamatan',
-      'Jatiluhur',
-      'Bungursari',
-      'Wanayasa',
-      'Purwakarta Kota',
-      'Campaka',
-      'Babakancikao',
-      'Maniis',
-      'Plered',
-      'Sukatani',
+      ...PURWAKARTA_DISTRICTS
     ],
     jabar: [
-      'Semua Daerah',
-      'Kabupaten Purwakarta',
-      'Kabupaten Karawang',
-      'Kabupaten Subang',
-      'Kota Bandung',
-      'Kabupaten Bekasi',
+      'Semua Kabupaten / Kota',
+      ...WEST_JAVA_REGENCIES.map(r => r.name)
     ],
     nasional: [
       'Seluruh Indonesia',
-      'Jawa & Bali',
+      'DKI Jakarta',
+      'Jawa Barat',
+      'Jawa Tengah',
+      'Jawa Timur',
+      'Banten',
       'Sumatra',
       'Kalimantan',
-      'Nusa Tenggara (NTT)',
       'Sulawesi',
-      'Papua',
+      'Bali & Nusa Tenggara',
+      'Papua & Maluku'
     ],
   };
 
@@ -63,9 +63,9 @@ export default function TerritorySelector({
       {/* Top Level Territory Navigation */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-ink-secondary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
-            Wilayah Pemantauan
+          <Navigation className="w-4 h-4 text-primary" />
+          <span className="text-xs font-bold uppercase tracking-wider text-ink-primary">
+            Cakupan Teritorial Pemantauan
           </span>
         </div>
 
@@ -73,6 +73,7 @@ export default function TerritorySelector({
         <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-btn overflow-x-auto">
           {primaryTerritories.map(item => {
             const isActive = selectedScope === item.id;
+            const Icon = item.icon;
             return (
               <button
                 key={item.id}
@@ -80,16 +81,19 @@ export default function TerritorySelector({
                   onSelectScope(item.id);
                   if (onSelectSubScope) onSelectSubScope(subTerritories[item.id][0]);
                 }}
-                className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors shrink-0 inline-flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-ink-primary text-white font-semibold'
-                    : 'bg-transparent text-ink-secondary hover:bg-muted border border-transparent'
+                    ? 'bg-ink-primary text-white font-semibold shadow-xs'
+                    : 'bg-transparent text-ink-secondary hover:bg-stone-100 hover:text-ink-primary border border-transparent'
                 }`}
               >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-ink-tertiary'}`} />
                 <span>{item.label}</span>
-                <span className={`ml-1.5 text-[11px] ${isActive ? 'text-stone-300' : 'text-ink-tertiary'}`}>
-                  ({item.count})
-                </span>
+                {typeof item.count === 'number' && (
+                  <span className={`ml-1 text-[11px] font-mono ${isActive ? 'text-stone-300' : 'text-ink-tertiary'}`}>
+                    ({item.count})
+                  </span>
+                )}
               </button>
             );
           })}
@@ -99,10 +103,10 @@ export default function TerritorySelector({
       {/* Sub-level Horizontal Pills */}
       {onSelectSubScope && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
-          <span className="text-[11px] text-ink-tertiary font-medium shrink-0 mr-1">
-            {selectedScope === 'purwakarta' ? 'Kecamatan:' : selectedScope === 'jabar' ? 'Daerah:' : 'Wilayah:'}
+          <span className="text-[11px] text-ink-tertiary font-bold shrink-0 mr-1 uppercase tracking-wider">
+            {selectedScope === 'purwakarta' ? 'Kecamatan:' : selectedScope === 'jabar' ? 'Daerah Jabar:' : 'Wilayah:'}
           </span>
-          {subTerritories[selectedScope].map(sub => {
+          {subTerritories[selectedScope]?.map(sub => {
             const isSubActive = selectedSubScope === sub || (!selectedSubScope && sub === subTerritories[selectedScope][0]);
             return (
               <button
@@ -110,8 +114,8 @@ export default function TerritorySelector({
                 onClick={() => onSelectSubScope(sub)}
                 className={`px-2.5 py-1 rounded text-xs transition-colors shrink-0 ${
                   isSubActive
-                    ? 'bg-stone-200 text-ink-primary font-semibold'
-                    : 'bg-muted/80 text-ink-secondary hover:bg-muted hover:text-ink-primary'
+                    ? 'bg-primary/10 text-primary font-bold border border-primary/30'
+                    : 'bg-stone-100 text-ink-secondary hover:bg-stone-200/80 hover:text-ink-primary border border-border/50'
                 }`}
               >
                 {sub}

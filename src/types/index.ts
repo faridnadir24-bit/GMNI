@@ -343,6 +343,8 @@ export interface BahanKajianDocument {
   };
 }
 
+export type SourceVerificationStatus = 'SUPPORTED' | 'PARTIALLY_SUPPORTED' | 'CONFLICTING' | 'UNVERIFIED';
+
 export type DossierStatus = 'current' | 'stale' | 'archived';
 
 export interface DossierCitation {
@@ -352,8 +354,54 @@ export interface DossierCitation {
   title: string;
   url?: string;
   published_at?: string;
+  retrieved_at?: string;
   tier: string;
   badge: string;
+  verification_status: SourceVerificationStatus;
+  credibility_score: number;
+  supported_claims?: string[];
+}
+
+export interface KeyDataBoxItem {
+  parameter: string;
+  value: string;
+  context: string;
+  source_badge: string;
+  source_name: string;
+  source_url?: string;
+}
+
+export interface ChronologyRow {
+  date: string;
+  event: string;
+  actors: string;
+  impact: string;
+  source_badge: string;
+}
+
+export interface SourceComparisonRow {
+  source_name: string;
+  claim_statement: string;
+  data_point: string;
+  consistency_status: 'Konsisten' | 'Berbeda / Sengketa' | 'Perlu Verifikasi';
+}
+
+export interface PolicyScenario {
+  scenario_number: number;
+  option_title: string;
+  pros: string[];
+  cons: string[];
+  risks: string[];
+  impact_summary: string;
+  implementing_actors: string[];
+}
+
+export interface HumanReviewMeta {
+  is_reviewed: boolean;
+  reviewer_name?: string;
+  reviewer_role?: string;
+  reviewed_at?: string;
+  review_notes?: string;
 }
 
 export interface DossierChapter {
@@ -374,7 +422,10 @@ export interface ResearchDossier {
   id: string;
   issue_id: string;
   issue_title: string;
+  issue_subtitle?: string;
   issue_slug: string;
+  location: string;
+  category: string;
   version: number;
   generated_at: string;
   generated_by: string;
@@ -383,6 +434,21 @@ export interface ResearchDossier {
   is_stale: boolean;
   staleness_reason?: string;
   quality_warning?: string;
+  
+  // Executive Summary & Analytical Framing
+  executive_summary: string;
+  key_data_box: KeyDataBoxItem[];
+  chronology_table: ChronologyRow[];
+  source_comparison_table: SourceComparisonRow[];
+  policy_scenarios: PolicyScenario[];
+  pattern_interpretation: string; // Benang Merah
+  what_this_means: string; // Apa Arti Perkembangan Ini?
+
+  // Quality & Review
+  citation_coverage: number; // 0-100 percentage
+  human_review: HumanReviewMeta;
+
+  // 21 Chapters
   chapters: DossierChapter[];
   total_sources_cited: number;
   sources_list: DossierCitation[];
@@ -403,4 +469,5 @@ export interface DiscussionBrief {
   }[];
   initial_conclusion: string;
 }
+
 

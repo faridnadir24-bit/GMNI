@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: dossier,
-        message: 'AI Research Dossier (18 Bab) berhasil disusun dan diverifikasi.',
+        message: 'AI Research Dossier (21 Bab Lengkap) berhasil disusun dan diverifikasi.',
         meta: { timestamp: new Date().toISOString(), role: userRole }
       });
     }
