@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/services/supabase';
 import { mapSupabaseRowToIssue, extractClaimsFromRow, extractSourcesFromRow, SupabaseIssueRow } from '@/lib/services/issue-adapter';
-import { generateResearchDossier, generateDiscussionBrief, isDossierStale } from '@/lib/services/dossier-engine';
+import { 
+  generateResearchDossier, 
+  generateDiscussionBrief, 
+  generateMediaBrief, 
+  generatePolicyBrief, 
+  generatePresentationDeck, 
+  generateMeetingNotes, 
+  generateSocialMediaContent, 
+  checkDossierStaleness 
+} from '@/lib/services/dossier-engine';
 import { hasPermission } from '@/lib/services/permissions';
 import { UserRole } from '@/types';
 
@@ -104,6 +113,41 @@ export async function GET(request: NextRequest) {
         data: brief,
         meta: { timestamp: new Date().toISOString(), type: 'brief', role: userRole }
       });
+    } else if (type === 'social') {
+      const social = generateSocialMediaContent(mappedIssue, mappedSources, mappedClaims);
+      return NextResponse.json({
+        success: true,
+        data: social,
+        meta: { timestamp: new Date().toISOString(), type: 'social', role: userRole }
+      });
+    } else if (type === 'policy_brief') {
+      const pb = generatePolicyBrief(mappedIssue, mappedSources, mappedClaims);
+      return NextResponse.json({
+        success: true,
+        data: pb,
+        meta: { timestamp: new Date().toISOString(), type: 'policy_brief', role: userRole }
+      });
+    } else if (type === 'presentation') {
+      const deck = generatePresentationDeck(mappedIssue, mappedSources, mappedClaims);
+      return NextResponse.json({
+        success: true,
+        data: deck,
+        meta: { timestamp: new Date().toISOString(), type: 'presentation', role: userRole }
+      });
+    } else if (type === 'meeting_notes') {
+      const notes = generateMeetingNotes(mappedIssue, mappedSources, mappedClaims);
+      return NextResponse.json({
+        success: true,
+        data: notes,
+        meta: { timestamp: new Date().toISOString(), type: 'meeting_notes', role: userRole }
+      });
+    } else if (type === 'media_brief') {
+      const mb = generateMediaBrief(mappedIssue, mappedSources, mappedClaims);
+      return NextResponse.json({
+        success: true,
+        data: mb,
+        meta: { timestamp: new Date().toISOString(), type: 'media_brief', role: userRole }
+      });
     } else {
       const dossier = generateResearchDossier(
         mappedIssue, 
@@ -111,7 +155,7 @@ export async function GET(request: NextRequest) {
         mappedClaims, 
         `Tim Peneliti Sospol GMNI (${userRole.toUpperCase()})`
       );
-      const staleness = isDossierStale(dossier, mappedIssue);
+      const staleness = checkDossierStaleness(dossier, mappedIssue);
       dossier.is_stale = staleness.isStale;
       dossier.staleness_reason = staleness.reason;
 

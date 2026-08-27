@@ -44,7 +44,7 @@ assert.strictEqual(dossier.chapters.length, 21, 'Must generate exactly 21 full c
 assert(dossier.executive_summary.length > 300, 'Executive summary must be substantive narrative');
 assert(dossier.key_data_box.length >= 4, 'Key data box must contain at least 4 indicators');
 assert.strictEqual(dossier.policy_scenarios.length, 3, 'Must provide 3 policy scenarios');
-assert(dossier.pattern_interpretation.includes('[Interpretasi Analitis]'), 'Benang merah must be labeled as analytical interpretation');
+assert(dossier.pattern_interpretation.toUpperCase().includes('[INTERPRETASI ANALITIS]'), 'Benang merah must be labeled as analytical interpretation');
 console.log('✓ 21 Chapters generated successfully with deep academic structure');
 
 // 2. Test Multi-Format Generators

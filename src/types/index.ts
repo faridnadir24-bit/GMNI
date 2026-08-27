@@ -457,7 +457,21 @@ export interface ResearchDossier {
 
 export type PublicationReadiness = 'RESEARCH_DRAFT' | 'RESEARCH_REVIEWED' | 'PUBLICATION_READY';
 
-export type DossierMode = 'naskah_kajian' | 'policy_brief' | 'presentation' | 'meeting_notes' | 'media_brief';
+export type DossierMode = 'naskah_kajian' | 'policy_brief' | 'presentation' | 'meeting_notes' | 'media_brief' | 'social_content';
+
+export interface SocialMediaContent {
+  issue_title: string;
+  instagram_carousel: { slide: number; headline: string; body: string; citation: string }[];
+  twitter_thread: { tweet_number: number; text: string; citation: string }[];
+  instagram_caption: string;
+  short_video_script: {
+    hook: string;
+    body_points: string[];
+    call_to_action: string;
+    source_citation: string;
+  };
+  disclaimer: string;
+}
 
 export interface MediaBrief {
   title: string;

@@ -36,7 +36,8 @@ import {
   generateMediaBrief,
   generatePolicyBrief,
   generatePresentationDeck,
-  generateMeetingNotes
+  generateMeetingNotes,
+  generateSocialMediaContent
 } from '@/lib/services/dossier-engine';
 import SourceDrawer from './SourceDrawer';
 
@@ -149,6 +150,7 @@ export default function DossierView({
   const policyBrief = generatePolicyBrief(issue, issueSources, issueClaims);
   const presentationDeck = generatePresentationDeck(issue, issueSources, issueClaims);
   const meetingNotes = generateMeetingNotes(issue, issueSources, issueClaims);
+  const socialContent = generateSocialMediaContent(issue, issueSources, issueClaims);
 
   const copyCustomFormat = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -253,7 +255,8 @@ export default function DossierView({
           { id: 'policy_brief', label: 'Policy Brief (Eksekutif)', icon: FileText },
           { id: 'presentation', label: 'Bahan Presentasi', icon: Presentation },
           { id: 'meeting_notes', label: 'Naskah Rapat Sospol', icon: Users },
-          { id: 'media_brief', label: 'Media Brief (Rilis & Sosmed)', icon: Share2 }
+          { id: 'media_brief', label: 'Media Brief (Rilis Pers)', icon: Share2 },
+          { id: 'social_content', label: 'Konten Sosial Media', icon: Sparkles }
         ].map(fmt => {
           const isActive = selectedFormatMode === fmt.id;
           const Icon = fmt.icon;
@@ -488,6 +491,118 @@ export default function DossierView({
               <strong>Caveat Metodologis:</strong> {mediaBrief.one_caveat}
             </div>
           </div>
+        </div>
+      ) : selectedFormatMode === 'social_content' ? (
+        /* KONTEN SOSIAL MEDIA VIEW */
+        <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <div>
+              <span className="text-xs font-mono font-bold text-primary uppercase">Generator Konten Sosial Media & Advokasi Publik</span>
+              <h2 className="text-xl font-bold text-ink-primary mt-1">{socialContent.issue_title}</h2>
+              <p className="text-xs text-ink-secondary mt-0.5">{socialContent.disclaimer}</p>
+            </div>
+            <button
+              onClick={() => copyCustomFormat(JSON.stringify(socialContent, null, 2))}
+              className="px-3 py-1.5 rounded-btn bg-stone-100 hover:bg-stone-200 text-xs font-semibold inline-flex items-center gap-1.5"
+            >
+              {copiedFormat ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedFormat ? 'Tersalin!' : 'Salin Semua Konten'}</span>
+            </button>
+          </div>
+
+          {/* 1. Instagram Carousel Deck */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-ink-primary uppercase tracking-wider">
+                1. Instagram Carousel (5 Slide)
+              </h3>
+              <button
+                onClick={() => copyCustomFormat(socialContent.instagram_carousel.map(s => `[SLIDE ${s.slide}]\n${s.headline}\n${s.body}\nSitasi: ${s.citation}`).join('\n\n'))}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                Salin Carousel
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              {socialContent.instagram_carousel.map(slide => (
+                <div key={slide.slide} className="p-3.5 rounded-card bg-stone-50 border border-border space-y-2 flex flex-col justify-between">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-mono font-bold text-primary">SLIDE {slide.slide}</span>
+                    <div className="text-xs font-bold text-ink-primary leading-snug">{slide.headline}</div>
+                    <p className="text-[11px] text-ink-secondary leading-relaxed font-serif">{slide.body}</p>
+                  </div>
+                  <div className="text-[10px] font-mono text-ink-tertiary pt-2 border-t border-border">{slide.citation}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. X / Twitter Thread */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-ink-primary uppercase tracking-wider">
+                2. Utas X / Twitter Thread (5 Tweets)
+              </h3>
+              <button
+                onClick={() => copyCustomFormat(socialContent.twitter_thread.map(t => t.text).join('\n\n'))}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                Salin Utas X
+              </button>
+            </div>
+            <div className="space-y-2">
+              {socialContent.twitter_thread.map(tweet => (
+                <div key={tweet.tweet_number} className="p-3 rounded-card bg-stone-50 border border-border text-xs text-ink-primary flex items-start gap-2.5">
+                  <span className="font-bold text-primary font-mono">{tweet.tweet_number}.</span>
+                  <div className="leading-relaxed">{tweet.text}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Short Video Script & Caption */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
+            <div className="p-4 rounded-card bg-stone-50 border border-border space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-ink-primary uppercase">Naskah Video Singkat (Reels / TikTok / Shorts)</div>
+                <button
+                  onClick={() => copyCustomFormat(`HOOK: ${socialContent.short_video_script.hook}\n\nBODY:\n${socialContent.short_video_script.body_points.join('\n')}\n\nCTA: ${socialContent.short_video_script.call_to_action}`)}
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
+                  Salin Naskah
+                </button>
+              </div>
+              <div className="text-xs space-y-2 font-serif text-ink-secondary">
+                <div><strong className="text-ink-primary font-sans">Hook:</strong> {socialContent.short_video_script.hook}</div>
+                <div>
+                  <strong className="text-ink-primary font-sans">Poin Utama:</strong>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    {socialContent.short_video_script.body_points.map((p, i) => (
+                      <li key={i}>{p}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div><strong className="text-ink-primary font-sans">Call to Action:</strong> {socialContent.short_video_script.call_to_action}</div>
+                <div className="text-[10px] font-mono text-ink-tertiary pt-1 border-t border-border">{socialContent.short_video_script.source_citation}</div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-card bg-stone-50 border border-border space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-ink-primary uppercase">Caption Instagram Feed</div>
+                <button
+                  onClick={() => copyCustomFormat(socialContent.instagram_caption)}
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
+                  Salin Caption
+                </button>
+              </div>
+              <div className="text-xs font-serif text-ink-secondary whitespace-pre-line leading-relaxed bg-white p-3 rounded border border-border">
+                {socialContent.instagram_caption}
+              </div>
+            </div>
+          </div>
+
         </div>
       ) : (
         /* DEFAULT: 21-CHAPTER ACADEMIC RESEARCH DOSSIER */
