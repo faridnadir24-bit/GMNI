@@ -447,11 +447,60 @@ export interface ResearchDossier {
   // Quality & Review
   citation_coverage: number; // 0-100 percentage
   human_review: HumanReviewMeta;
+  publication_readiness: PublicationReadiness;
 
   // 21 Chapters
   chapters: DossierChapter[];
   total_sources_cited: number;
   sources_list: DossierCitation[];
+}
+
+export type PublicationReadiness = 'RESEARCH_DRAFT' | 'RESEARCH_REVIEWED' | 'PUBLICATION_READY';
+
+export type DossierMode = 'naskah_kajian' | 'policy_brief' | 'presentation' | 'meeting_notes' | 'media_brief';
+
+export interface MediaBrief {
+  title: string;
+  subtitle: string;
+  five_key_facts: string[];
+  three_key_data: { label: string; value: string; source: string }[];
+  two_recent_developments: string[];
+  one_caveat: string;
+  sources_list: { name: string; url?: string; date?: string }[];
+}
+
+export interface PolicyBrief {
+  title: string;
+  executive_summary: string;
+  context_and_urgency: string;
+  key_findings: string[];
+  stakeholder_analysis: string;
+  actionable_recommendations: {
+    short_term: string[];
+    medium_term: string[];
+  };
+  sources_list: DossierCitation[];
+}
+
+export interface PresentationSlide {
+  slide_number: number;
+  title: string;
+  bullet_points: string[];
+  speaker_notes: string;
+}
+
+export interface PresentationDeck {
+  deck_title: string;
+  target_audience: string;
+  slides: PresentationSlide[];
+}
+
+export interface MeetingNotes {
+  agenda_title: string;
+  factual_basis: string[];
+  critical_questions: string[];
+  action_plan_items: string[];
+  sources_summary: string;
 }
 
 export interface DiscussionBrief {
@@ -469,5 +518,6 @@ export interface DiscussionBrief {
   }[];
   initial_conclusion: string;
 }
+
 
 

@@ -16,6 +16,7 @@ interface TerritorySelectorProps {
     jabar?: number;
     nasional?: number;
   };
+  coverageSummary?: string;
   className?: string;
 }
 
@@ -25,6 +26,7 @@ export default function TerritorySelector({
   selectedSubScope,
   onSelectSubScope,
   counts = {},
+  coverageSummary,
   className = '',
 }: TerritorySelectorProps) {
   const primaryTerritories: { id: TerritoryScope; label: string; icon: any; count?: number }[] = [
@@ -122,6 +124,20 @@ export default function TerritorySelector({
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Honest Coverage Indicator Banner */}
+      {coverageSummary && (
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-md bg-stone-100/90 border border-border/80 text-[11px] text-ink-secondary">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+            <span className="font-medium text-ink-primary">Indikator Cakupan Teritorial:</span>
+            <span>{coverageSummary}</span>
+          </div>
+          <span className="text-ink-tertiary font-mono text-[10px] hidden sm:inline">
+            Status Terhubung Basis Data
+          </span>
         </div>
       )}
     </div>

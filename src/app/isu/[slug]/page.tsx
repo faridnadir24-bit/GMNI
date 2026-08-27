@@ -311,6 +311,14 @@ export default function IssueDetailPage() {
           {/* LEFT COLUMN: EVIDENCE & FACT ANALYSIS (8 Cols) */}
           <div className="lg:col-span-8 space-y-8">
             
+            {/* WHAT CHANGED (CHANGE DETECTION) */}
+            <WhatChangedSection changeSummary={issue.what_changed} lastUpdatedAt={issue.last_updated_at} />
+
+            {/* CONTRADICTION DETECTION */}
+            {issue.contradictions && issue.contradictions.length > 0 && (
+              <ContradictionSection contradictions={issue.contradictions} />
+            )}
+
             {/* FACT VS CLAIM */}
             <FactVsClaim issueId={issue.id} claims={issueClaims} />
 

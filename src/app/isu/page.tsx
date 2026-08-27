@@ -13,7 +13,7 @@ import { useApp } from '@/context/AppContext';
 import { Issue, IssueStatus } from '@/types';
 import { formatDateIndo } from '@/lib/utils';
 import TerritorySelector from '@/components/ui/TerritorySelector';
-import { filterIssuesByTerritory, TerritoryScope } from '@/lib/services/territory-service';
+import { filterIssuesByTerritory, calculateHonestCoverageMetrics, TerritoryScope } from '@/lib/services/territory-service';
 import LocationBadge from '@/components/ui/LocationBadge';
 import CategoryBadge from '@/components/ui/CategoryBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -52,6 +52,8 @@ export default function IssueDirectoryPage() {
     'Keamanan',
     'Pemerintahan'
   ];
+
+  const coverageMetrics = useMemo(() => calculateHonestCoverageMetrics(issues), [issues]);
 
   const territoryCounts = useMemo(() => ({
     purwakarta: filterIssuesByTerritory(issues, 'purwakarta').length,
@@ -197,6 +199,7 @@ export default function IssueDirectoryPage() {
         selectedSubScope={selectedSubTerritory}
         onSelectSubScope={setSelectedSubTerritory}
         counts={territoryCounts}
+        coverageSummary={coverageMetrics.honestSummary}
       />
 
       {/* Search & Filters Toolbar */}

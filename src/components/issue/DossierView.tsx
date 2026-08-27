@@ -20,11 +20,24 @@ import {
   Scale,
   CheckCircle2,
   UserCheck,
-  TrendingUp
+  TrendingUp,
+  Share2,
+  Presentation,
+  Users,
+  Radio,
+  FileCheck,
+  Clock
 } from 'lucide-react';
-import { ResearchDossier, Issue, DossierCitation } from '@/types';
+import { ResearchDossier, Issue, DossierCitation, DossierMode } from '@/types';
 import { formatDateIndo } from '@/lib/utils';
-import { exportDossierToMarkdown, markDossierReviewed } from '@/lib/services/dossier-engine';
+import { 
+  exportDossierToMarkdown, 
+  markDossierReviewed, 
+  generateMediaBrief,
+  generatePolicyBrief,
+  generatePresentationDeck,
+  generateMeetingNotes
+} from '@/lib/services/dossier-engine';
 import SourceDrawer from './SourceDrawer';
 
 interface DossierViewProps {
@@ -42,7 +55,9 @@ export default function DossierView({
 }: DossierViewProps) {
   const [dossier, setDossier] = useState<ResearchDossier>(initialDossier);
   const [copiedMd, setCopiedMd] = useState(false);
+  const [copiedFormat, setCopiedFormat] = useState(false);
   const [activeChapterId, setActiveChapterId] = useState<string>(dossier.chapters[0]?.id || '');
+  const [selectedFormatMode, setSelectedFormatMode] = useState<DossierMode>('naskah_kajian');
   
   // Source Drawer state
   const [selectedCitation, setSelectedCitation] = useState<DossierCitation | null>(null);
@@ -127,6 +142,20 @@ export default function DossierView({
     });
   };
 
+  // Multi-Mode Artifact Generators
+  const issueClaims = (issue as any).claims || [];
+  const issueSources = (issue as any).sources || [];
+  const mediaBrief = generateMediaBrief(issue, issueSources, issueClaims);
+  const policyBrief = generatePolicyBrief(issue, issueSources, issueClaims);
+  const presentationDeck = generatePresentationDeck(issue, issueSources, issueClaims);
+  const meetingNotes = generateMeetingNotes(issue, issueSources, issueClaims);
+
+  const copyCustomFormat = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedFormat(true);
+    setTimeout(() => setCopiedFormat(false), 2000);
+  };
+
   return (
     <div className="space-y-6">
       
@@ -140,6 +169,22 @@ export default function DossierView({
             <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-[10px] font-bold font-mono uppercase tracking-wider">
               Cakupan Sitasi: {dossier.citation_coverage}%
             </span>
+            {dossier.publication_readiness === 'PUBLICATION_READY' ? (
+              <span className="px-2 py-0.5 bg-emerald-700 text-white rounded text-[10px] font-bold font-mono uppercase tracking-wider inline-flex items-center gap-1 shadow-2xs">
+                <ShieldCheck className="w-3 h-3" />
+                PUBLICATION READY
+              </span>
+            ) : dossier.publication_readiness === 'RESEARCH_REVIEWED' ? (
+              <span className="px-2 py-0.5 bg-blue-700 text-white rounded text-[10px] font-bold font-mono uppercase tracking-wider inline-flex items-center gap-1">
+                <FileCheck className="w-3 h-3" />
+                RESEARCH REVIEWED
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded text-[10px] font-bold font-mono uppercase tracking-wider inline-flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                RESEARCH DRAFT
+              </span>
+            )}
             <span className="text-xs font-mono text-ink-tertiary">
               Versi {dossier.version}.0
             </span>
@@ -198,6 +243,37 @@ export default function DossierView({
         </div>
       </div>
 
+      {/* Mode / Format Selector: "Jadikan Naskah" */}
+      <div className="bg-surface rounded-card border border-border p-2 sm:p-2.5 shadow-xs flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <span className="text-[11px] font-bold text-ink-secondary px-2 uppercase tracking-wider shrink-0">
+          Format Dokumen:
+        </span>
+        {[
+          { id: 'naskah_kajian', label: 'Naskah Kajian (21 Bab)', icon: BookOpen },
+          { id: 'policy_brief', label: 'Policy Brief (Eksekutif)', icon: FileText },
+          { id: 'presentation', label: 'Bahan Presentasi', icon: Presentation },
+          { id: 'meeting_notes', label: 'Naskah Rapat Sospol', icon: Users },
+          { id: 'media_brief', label: 'Media Brief (Rilis & Sosmed)', icon: Share2 }
+        ].map(fmt => {
+          const isActive = selectedFormatMode === fmt.id;
+          const Icon = fmt.icon;
+          return (
+            <button
+              key={fmt.id}
+              onClick={() => setSelectedFormatMode(fmt.id as DossierMode)}
+              className={`px-3 py-1.5 rounded-btn text-xs font-medium transition-all shrink-0 inline-flex items-center gap-1.5 ${
+                isActive
+                  ? 'bg-ink-primary text-white font-bold shadow-xs'
+                  : 'text-ink-secondary hover:bg-stone-100 hover:text-ink-primary'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{fmt.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Human Review Banner if Reviewed */}
       {dossier.human_review?.is_reviewed && (
         <div className="p-3.5 rounded-card bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2.5">
@@ -222,284 +298,477 @@ export default function DossierView({
         </div>
       )}
 
-      {/* Main Dossier Grid: TOC + Content Paper */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* LEFT: Table of Contents Sticky Drawer (4 Cols) */}
-        <div className="lg:col-span-4 bg-surface rounded-card border border-border p-4 shadow-subtle space-y-3 sticky top-20 max-h-[85vh] overflow-y-auto">
-          <div className="flex items-center gap-2 pb-2 border-b border-border text-xs font-bold text-ink-primary uppercase tracking-wider">
-            <ListOrdered className="w-4 h-4 text-primary" />
-            <span>Daftar Isi (21 Bab)</span>
-          </div>
-
-          <div className="space-y-1 text-xs">
-            {/* Quick anchors */}
-            <button
-              onClick={() => scrollToChapter('sec-ringkasan-eksekutif')}
-              className="w-full text-left px-2 py-1.5 rounded transition-colors text-ink-secondary hover:bg-stone-100 font-semibold"
-            >
-              ★ Ringkasan Eksekutif & Data Kunci
-            </button>
-
-            {dossier.chapters.map((chap) => (
-              <button
-                key={chap.id}
-                onClick={() => scrollToChapter(chap.id)}
-                className={`w-full text-left px-2 py-1.5 rounded transition-colors flex items-start gap-2 ${
-                  activeChapterId === chap.id
-                    ? 'bg-primary/10 text-primary font-bold border-l-2 border-primary'
-                    : 'text-ink-secondary hover:bg-stone-100 hover:text-ink-primary'
-                }`}
-              >
-                <span className="font-mono text-[10px] w-6 shrink-0 text-ink-tertiary">
-                  {chap.number}.
-                </span>
-                <span className="line-clamp-1 leading-snug">
-                  {chap.title}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="pt-3 border-t border-border space-y-2">
-            <div className="text-[11px] text-ink-tertiary">
-              Total Rujukan Sitasi: <strong className="text-ink-primary font-bold">{dossier.total_sources_cited} Sumber</strong>
+      {/* RENDER VIEW ACCORDING TO SELECTED FORMAT */}
+      {selectedFormatMode === 'policy_brief' ? (
+        /* POLICY BRIEF VIEW */
+        <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <div>
+              <span className="text-xs font-mono font-bold text-primary uppercase">Format Policy Brief Eksekutif</span>
+              <h2 className="text-xl font-bold text-ink-primary mt-1">{policyBrief.title}</h2>
             </div>
-            <div className="text-[11px] text-ink-tertiary">
-              Cakupan Sitasi Bukti: <strong className="text-emerald-700 font-bold">{dossier.citation_coverage}%</strong>
+            <button
+              onClick={() => copyCustomFormat(JSON.stringify(policyBrief, null, 2))}
+              className="px-3 py-1.5 rounded-btn bg-stone-100 hover:bg-stone-200 text-xs font-semibold inline-flex items-center gap-1.5"
+            >
+              {copiedFormat ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedFormat ? 'Tersalin!' : 'Salin Brief'}</span>
+            </button>
+          </div>
+
+          <div className="space-y-4 text-xs sm:text-sm text-ink-primary font-serif">
+            <div className="p-4 rounded-card bg-stone-50 border border-border space-y-2">
+              <div className="font-bold text-xs uppercase font-sans text-ink-primary">Ringkasan Eksekutif</div>
+              <p className="leading-relaxed">{renderParagraphWithCitations(policyBrief.executive_summary)}</p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase font-sans text-ink-primary">Konteks & Urgensi Intervensi</div>
+              <p className="leading-relaxed">{renderParagraphWithCitations(policyBrief.context_and_urgency)}</p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase font-sans text-ink-primary">Temuan Kunci (Key Findings)</div>
+              <div className="space-y-1.5">
+                {policyBrief.key_findings.map((kf, i) => (
+                  <div key={i} className="p-2.5 rounded bg-stone-50 border border-border">{kf}</div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 rounded-card bg-emerald-50/50 border border-emerald-200/70 space-y-2">
+                <div className="font-bold text-xs uppercase font-sans text-emerald-900">Rekomendasi Jangka Pendek</div>
+                <div className="space-y-1 text-xs">
+                  {policyBrief.actionable_recommendations.short_term.map((r, i) => (
+                    <div key={i}>• {r}</div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-card bg-blue-50/50 border border-blue-200/70 space-y-2">
+                <div className="font-bold text-xs uppercase font-sans text-blue-900">Rekomendasi Jangka Menengah</div>
+                <div className="space-y-1 text-xs">
+                  {policyBrief.actionable_recommendations.medium_term.map((r, i) => (
+                    <div key={i}>• {r}</div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* RIGHT: The Academic Paper Document (8 Cols) */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {/* Paper Cover Header */}
-          <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-4 text-center border-t-4 border-t-primary">
-            <div className="text-xs font-mono font-bold tracking-widest text-primary uppercase">
-              Pusat Kajian & Riset Kebijakan Publik GMNI
+      ) : selectedFormatMode === 'presentation' ? (
+        /* PRESENTATION DECK VIEW */
+        <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <div>
+              <span className="text-xs font-mono font-bold text-primary uppercase">Bahan Presentasi / Slide Deck Outline</span>
+              <h2 className="text-xl font-bold text-ink-primary mt-1">{presentationDeck.deck_title}</h2>
+              <p className="text-xs text-ink-secondary mt-0.5">Target Audiens: {presentationDeck.target_audience}</p>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-ink-primary tracking-tight leading-tight">
-              {dossier.issue_title}
-            </h1>
-            <p className="text-xs sm:text-sm text-ink-secondary max-w-xl mx-auto leading-relaxed">
-              {dossier.issue_subtitle}
-            </p>
-
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-3 text-[11px] text-ink-tertiary border-t border-border">
-              <span>Lokus: <strong className="text-ink-primary">{dossier.location}</strong></span>
-              <span>•</span>
-              <span>Sektor: <strong className="text-ink-primary">{dossier.category}</strong></span>
-              <span>•</span>
-              <span>Diterbitkan: <strong className="text-ink-primary">{formatDateIndo(dossier.generated_at)}</strong></span>
-              <span>•</span>
-              <span>Oleh: <strong className="text-ink-primary">{dossier.generated_by}</strong></span>
-            </div>
-          </div>
-
-          {/* SECTION: RINGKASAN EKSEKUTIF & DATA KUNCI */}
-          <div id="sec-ringkasan-eksekutif" className="bg-surface rounded-card border border-border p-6 sm:p-7 shadow-subtle space-y-6">
-            <div className="border-b border-border pb-3">
-              <h2 className="text-base sm:text-lg font-bold text-ink-primary flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                RINGKASAN EKSEKUTIF (EXECUTIVE SUMMARY)
-              </h2>
-              <p className="text-xs text-ink-secondary">Sintesis strategis persoalan, kelompok terdampak, dan rekomendasi awal</p>
-            </div>
-
-            <div className="text-sm text-ink-primary leading-relaxed space-y-3 font-serif">
-              {renderParagraphWithCitations(dossier.executive_summary)}
-            </div>
-
-            {/* KEY DATA BOX TABLE */}
-            <div className="space-y-3 pt-4 border-t border-border">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-ink-primary uppercase tracking-wider">
-                <TrendingUp className="w-3.5 h-3.5 text-primary" />
-                <span>DATA KUNCI & INDIKATOR UTAMA</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border border-border rounded-lg overflow-hidden">
-                  <thead className="bg-stone-100 text-ink-primary font-bold">
-                    <tr>
-                      <th className="p-2.5 border-b border-border">Parameter</th>
-                      <th className="p-2.5 border-b border-border">Nilai / Indikator</th>
-                      <th className="p-2.5 border-b border-border">Konteks Kebijakan</th>
-                      <th className="p-2.5 border-b border-border">Rujukan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {dossier.key_data_box.map((k, idx) => (
-                      <tr key={idx} className="hover:bg-stone-50/80 transition-colors">
-                        <td className="p-2.5 font-semibold text-ink-primary">{k.parameter}</td>
-                        <td className="p-2.5 font-bold text-primary">{k.value}</td>
-                        <td className="p-2.5 text-ink-secondary">{k.context}</td>
-                        <td className="p-2.5">
-                          <button
-                            onClick={() => handleOpenSourceDrawer(k.source_badge)}
-                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-mono text-[11px] font-bold"
-                          >
-                            {k.source_badge}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* BENANG MERAH & WHAT THIS MEANS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-card bg-amber-50/60 border border-amber-200/80 space-y-2">
-                <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-amber-800" />
-                  Pola Temuan (Benang Merah)
-                </div>
-                <div className="text-xs text-ink-primary leading-relaxed font-serif">
-                  {renderParagraphWithCitations(dossier.pattern_interpretation)}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-card bg-blue-50/60 border border-blue-200/80 space-y-2">
-                <div className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-                  <HelpCircle className="w-3.5 h-3.5 text-blue-800" />
-                  Apa Arti Perkembangan Ini?
-                </div>
-                <div className="text-xs text-ink-primary leading-relaxed font-serif">
-                  {renderParagraphWithCitations(dossier.what_this_means)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ALL 21 CHAPTERS */}
-          {dossier.chapters.map((chap) => (
-            <div
-              key={chap.id}
-              id={chap.id}
-              className="bg-surface rounded-card border border-border p-6 sm:p-7 shadow-subtle space-y-5 transition-all"
+            <button
+              onClick={() => copyCustomFormat(JSON.stringify(presentationDeck, null, 2))}
+              className="px-3 py-1.5 rounded-btn bg-stone-100 hover:bg-stone-200 text-xs font-semibold inline-flex items-center gap-1.5"
             >
-              {/* Chapter Title */}
-              <div className="border-b border-border pb-3">
-                <div className="text-xs font-mono font-bold text-primary uppercase tracking-wider">
-                  BAB {chap.number}
-                </div>
-                <h3 className="text-base sm:text-lg font-bold text-ink-primary mt-0.5">
-                  {chap.title}
-                </h3>
-                {chap.summary && (
-                  <p className="text-xs text-ink-secondary italic mt-1">
-                    {chap.summary}
-                  </p>
-                )}
-              </div>
+              {copiedFormat ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedFormat ? 'Tersalin!' : 'Salin Slide'}</span>
+            </button>
+          </div>
 
-              {/* Paragraphs */}
-              <div className="text-sm text-ink-primary leading-relaxed space-y-3 font-serif">
-                {chap.paragraphs.map((p, idx) => (
-                  <p key={idx} className="text-justify leading-relaxed">
-                    {renderParagraphWithCitations(p)}
-                  </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {presentationDeck.slides.map(slide => (
+              <div key={slide.slide_number} className="p-5 rounded-card border border-border bg-stone-50/70 space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-primary">
+                  <span>SLIDE {slide.slide_number}</span>
+                </div>
+                <h3 className="text-sm font-bold text-ink-primary">{slide.title}</h3>
+                <div className="space-y-1.5 text-xs text-ink-secondary">
+                  {slide.bullet_points.map((bp, i) => (
+                    <div key={i} className="flex items-start gap-1.5">
+                      <span className="text-primary font-bold">•</span>
+                      <span>{renderParagraphWithCitations(bp)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-2.5 rounded bg-white border border-border text-[11px] text-ink-tertiary italic">
+                  <strong>Speaker Notes:</strong> {slide.speaker_notes}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : selectedFormatMode === 'meeting_notes' ? (
+        /* MEETING NOTES VIEW */
+        <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <div>
+              <span className="text-xs font-mono font-bold text-primary uppercase">Naskah Rapat Sospol & Diskusi Komisariat</span>
+              <h2 className="text-xl font-bold text-ink-primary mt-1">{meetingNotes.agenda_title}</h2>
+            </div>
+            <button
+              onClick={() => copyCustomFormat(JSON.stringify(meetingNotes, null, 2))}
+              className="px-3 py-1.5 rounded-btn bg-stone-100 hover:bg-stone-200 text-xs font-semibold inline-flex items-center gap-1.5"
+            >
+              {copiedFormat ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedFormat ? 'Tersalin!' : 'Salin Naskah Rapat'}</span>
+            </button>
+          </div>
+
+          <div className="space-y-4 text-xs sm:text-sm text-ink-primary">
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase text-ink-primary">1. Basis Faktual Pokok</div>
+              <div className="space-y-1.5">
+                {meetingNotes.factual_basis.map((fb, i) => (
+                  <div key={i} className="p-2.5 rounded bg-stone-50 border border-border">{fb}</div>
                 ))}
               </div>
-
-              {/* Bullet Points */}
-              {chap.bullet_points && chap.bullet_points.length > 0 && (
-                <div className="space-y-2.5 pt-2">
-                  {chap.bullet_points.map((bp, idx) => (
-                    <div key={idx} className="flex items-start gap-2.5 text-xs text-ink-primary bg-stone-50/60 p-3 rounded border border-border">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                      <div className="leading-relaxed font-serif">
-                        {renderParagraphWithCitations(bp)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Subsections */}
-              {chap.subsections && chap.subsections.length > 0 && (
-                <div className="space-y-4 pt-2">
-                  {chap.subsections.map((sub, sIdx) => (
-                    <div key={sIdx} className="space-y-2 bg-stone-50/40 p-4 rounded-card border border-border">
-                      <div className="text-xs font-bold text-ink-primary">
-                        {sub.subtitle}
-                      </div>
-                      <div className="space-y-2 text-xs text-ink-secondary font-serif">
-                        {sub.content.map((item, iIdx) => (
-                          <div key={iIdx} className="leading-relaxed">
-                            {renderParagraphWithCitations(item)}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-          ))}
 
-          {/* CHAPTER XXI: SOURCE REGISTER CARDS */}
-          <div className="bg-surface rounded-card border border-border p-6 sm:p-7 shadow-subtle space-y-5">
-            <div className="border-b border-border pb-3">
-              <div className="text-xs font-mono font-bold text-primary uppercase tracking-wider">
-                REGISTER LENGKAP
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase text-ink-primary">2. Pertanyaan Kritis Forum</div>
+              <div className="space-y-1.5">
+                {meetingNotes.critical_questions.map((cq, i) => (
+                  <div key={i} className="p-2.5 rounded bg-amber-50/60 border border-amber-200 text-amber-900 font-medium">{cq}</div>
+                ))}
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-ink-primary mt-0.5">
-                Verifikasi Sitasi & Register Dokumen Sumber
-              </h3>
-              <p className="text-xs text-ink-secondary">
-                Klik kartu rujukan untuk membuka riwayat provenance dan data pendukung
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {dossier.sources_list.map((cit) => (
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase text-ink-primary">3. Rencana Aksi & Pembagian Tim</div>
+              <div className="space-y-1.5">
+                {meetingNotes.action_plan_items.map((ap, i) => (
+                  <div key={i} className="p-2.5 rounded bg-emerald-50/60 border border-emerald-200 text-emerald-900">{ap}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : selectedFormatMode === 'media_brief' ? (
+        /* MEDIA BRIEF VIEW */
+        <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <div>
+              <span className="text-xs font-mono font-bold text-primary uppercase">Media Brief & Rilis Pers Kerakyatan</span>
+              <h2 className="text-xl font-bold text-ink-primary mt-1">{mediaBrief.title}</h2>
+              <p className="text-xs text-ink-secondary mt-0.5">{mediaBrief.subtitle}</p>
+            </div>
+            <button
+              onClick={() => copyCustomFormat(JSON.stringify(mediaBrief, null, 2))}
+              className="px-3 py-1.5 rounded-btn bg-stone-100 hover:bg-stone-200 text-xs font-semibold inline-flex items-center gap-1.5"
+            >
+              {copiedFormat ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedFormat ? 'Tersalin!' : 'Salin Media Brief'}</span>
+            </button>
+          </div>
+
+          <div className="space-y-4 text-xs sm:text-sm text-ink-primary">
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase text-ink-primary">5 Fakta Utama</div>
+              <div className="space-y-1.5">
+                {mediaBrief.five_key_facts.map((f, i) => (
+                  <div key={i} className="p-2.5 rounded bg-stone-50 border border-border">{renderParagraphWithCitations(f)}</div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase text-ink-primary">3 Data Kuantitatif Kunci</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {mediaBrief.three_key_data.map((d, i) => (
+                  <div key={i} className="p-3 rounded-card bg-stone-50 border border-border text-center space-y-1">
+                    <div className="text-[11px] text-ink-secondary">{d.label}</div>
+                    <div className="text-base font-bold text-primary">{d.value}</div>
+                    <div className="text-[10px] text-ink-tertiary font-mono">{d.source}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-card bg-amber-50/70 border border-amber-200 text-xs text-amber-900">
+              <strong>Caveat Metodologis:</strong> {mediaBrief.one_caveat}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* DEFAULT: 21-CHAPTER ACADEMIC RESEARCH DOSSIER */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* LEFT: Table of Contents Sticky Drawer (4 Cols) */}
+          <div className="lg:col-span-4 bg-surface rounded-card border border-border p-4 shadow-subtle space-y-3 sticky top-20 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center gap-2 pb-2 border-b border-border text-xs font-bold text-ink-primary uppercase tracking-wider">
+              <ListOrdered className="w-4 h-4 text-primary" />
+              <span>Daftar Isi (21 Bab)</span>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              {/* Quick anchors */}
+              <button
+                onClick={() => scrollToChapter('sec-ringkasan-eksekutif')}
+                className="w-full text-left px-2 py-1.5 rounded transition-colors text-ink-secondary hover:bg-stone-100 font-semibold"
+              >
+                ★ Ringkasan Eksekutif & Data Kunci
+              </button>
+
+              {dossier.chapters.map((chap) => (
                 <button
-                  key={cit.index}
-                  onClick={() => handleOpenSourceDrawer(cit)}
-                  className="text-left p-4 rounded-card border border-border bg-stone-50/60 hover:bg-stone-100 hover:border-primary/40 transition-all space-y-2 group shadow-2xs"
+                  key={chap.id}
+                  onClick={() => scrollToChapter(chap.id)}
+                  className={`w-full text-left px-2 py-1.5 rounded transition-colors flex items-start gap-2 ${
+                    activeChapterId === chap.id
+                      ? 'bg-primary/10 text-primary font-bold border-l-2 border-primary'
+                      : 'text-ink-secondary hover:bg-stone-100 hover:text-ink-primary'
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-mono text-[10px] font-bold rounded border border-blue-200">
-                      {cit.badge}
-                    </span>
-                    <span className="text-[10px] text-ink-tertiary font-medium">
-                      {cit.tier}
-                    </span>
-                  </div>
-
-                  <div className="text-xs font-bold text-ink-primary group-hover:text-primary transition-colors">
-                    {cit.source_name}
-                  </div>
-
-                  <div className="text-[11px] text-ink-secondary line-clamp-2 italic font-serif">
-                    "{cit.title}"
-                  </div>
-
-                  <div className="flex items-center justify-between text-[10px] text-ink-tertiary pt-1 border-t border-border">
-                    <span>{cit.published_at ? formatDateIndo(cit.published_at) : 'Tanggal tidak terdata'}</span>
-                    <span className="inline-flex items-center gap-1 text-primary font-medium">
-                      Detail <ExternalLink className="w-2.5 h-2.5" />
-                    </span>
-                  </div>
+                  <span className="font-mono text-[10px] w-6 shrink-0 text-ink-tertiary">
+                    {chap.number}.
+                  </span>
+                  <span className="line-clamp-1 leading-snug">
+                    {chap.title}
+                  </span>
                 </button>
               ))}
             </div>
+
+            <div className="pt-3 border-t border-border space-y-2">
+              <div className="text-[11px] text-ink-tertiary">
+                Total Rujukan Sitasi: <strong className="text-ink-primary font-bold">{dossier.total_sources_cited} Sumber</strong>
+              </div>
+              <div className="text-[11px] text-ink-tertiary">
+                Cakupan Sitasi Bukti: <strong className="text-emerald-700 font-bold">{dossier.citation_coverage}%</strong>
+              </div>
+            </div>
           </div>
 
-          {/* Footer Paper Signature */}
-          <div className="p-6 bg-stone-100 rounded-card border border-border text-center space-y-2">
-            <div className="text-xs font-bold text-ink-primary">
-              RUANG ISU GMNI — PUSAT RISET & ADVOKASI KEBIJAKAN PUBLIK
-            </div>
-            <div className="text-[11px] text-ink-secondary italic">
-              "Pejuang Pemikir – Pemikir Pejuang. Mengakar di tengah rakyat, membedah dengan ilmu, berjuang untuk keadilan."
-            </div>
-          </div>
+          {/* RIGHT: The Academic Paper Document (8 Cols) */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* Paper Cover Header */}
+            <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-4 text-center border-t-4 border-t-primary">
+              <div className="text-xs font-mono font-bold tracking-widest text-primary uppercase">
+                Pusat Kajian & Riset Kebijakan Publik GMNI
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-ink-primary tracking-tight leading-tight">
+                {dossier.issue_title}
+              </h1>
+              <p className="text-xs sm:text-sm text-ink-secondary max-w-xl mx-auto leading-relaxed">
+                {dossier.issue_subtitle}
+              </p>
 
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-3 text-[11px] text-ink-tertiary border-t border-border">
+                <span>Lokus: <strong className="text-ink-primary">{dossier.location}</strong></span>
+                <span>•</span>
+                <span>Sektor: <strong className="text-ink-primary">{dossier.category}</strong></span>
+                <span>•</span>
+                <span>Diterbitkan: <strong className="text-ink-primary">{formatDateIndo(dossier.generated_at)}</strong></span>
+                <span>•</span>
+                <span>Oleh: <strong className="text-ink-primary">{dossier.generated_by}</strong></span>
+              </div>
+            </div>
+
+            {/* SECTION: RINGKASAN EKSEKUTIF & DATA KUNCI */}
+            <div id="sec-ringkasan-eksekutif" className="bg-surface rounded-card border border-border p-6 sm:p-7 shadow-subtle space-y-6">
+              <div className="border-b border-border pb-3">
+                <h2 className="text-base sm:text-lg font-bold text-ink-primary flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  RINGKASAN EKSEKUTIF (EXECUTIVE SUMMARY)
+                </h2>
+                <p className="text-xs text-ink-secondary">Sintesis strategis persoalan, kelompok terdampak, dan rekomendasi awal</p>
+              </div>
+
+              <div className="text-sm text-ink-primary leading-relaxed space-y-3 font-serif">
+                {renderParagraphWithCitations(dossier.executive_summary)}
+              </div>
+
+              {/* KEY DATA BOX TABLE */}
+              <div className="space-y-3 pt-4 border-t border-border">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-ink-primary uppercase tracking-wider">
+                  <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                  <span>DATA KUNCI & INDIKATOR UTAMA</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border border-border rounded-lg overflow-hidden">
+                    <thead className="bg-stone-100 text-ink-primary font-bold">
+                      <tr>
+                        <th className="p-2.5 border-b border-border">Parameter</th>
+                        <th className="p-2.5 border-b border-border">Nilai / Indikator</th>
+                        <th className="p-2.5 border-b border-border">Konteks Kebijakan</th>
+                        <th className="p-2.5 border-b border-border">Rujukan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {dossier.key_data_box.map((k, idx) => (
+                        <tr key={idx} className="hover:bg-stone-50/80 transition-colors">
+                          <td className="p-2.5 font-semibold text-ink-primary">{k.parameter}</td>
+                          <td className="p-2.5 font-bold text-primary">{k.value}</td>
+                          <td className="p-2.5 text-ink-secondary">{k.context}</td>
+                          <td className="p-2.5">
+                            <button
+                              onClick={() => handleOpenSourceDrawer(k.source_badge)}
+                              className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-mono text-[11px] font-bold cursor-pointer"
+                            >
+                              {k.source_badge}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* BENANG MERAH & WHAT THIS MEANS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="p-4 rounded-card bg-amber-50/60 border border-amber-200/80 space-y-2">
+                  <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-amber-800" />
+                    Pola Temuan (Benang Merah)
+                  </div>
+                  <div className="text-xs text-ink-primary leading-relaxed font-serif">
+                    {renderParagraphWithCitations(dossier.pattern_interpretation)}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-card bg-blue-50/60 border border-blue-200/80 space-y-2">
+                  <div className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                    <HelpCircle className="w-3.5 h-3.5 text-blue-800" />
+                    Apa Arti Perkembangan Ini?
+                  </div>
+                  <div className="text-xs text-ink-primary leading-relaxed font-serif">
+                    {renderParagraphWithCitations(dossier.what_this_means)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ALL 21 CHAPTERS */}
+            {dossier.chapters.map((chap) => (
+              <div
+                key={chap.id}
+                id={chap.id}
+                className="bg-surface rounded-card border border-border p-6 sm:p-7 shadow-subtle space-y-5 transition-all"
+              >
+                {/* Chapter Title */}
+                <div className="border-b border-border pb-3">
+                  <div className="text-xs font-mono font-bold text-primary uppercase tracking-wider">
+                    BAB {chap.number}
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-ink-primary mt-0.5">
+                    {chap.title}
+                  </h3>
+                  {chap.summary && (
+                    <p className="text-xs text-ink-secondary italic mt-1">
+                      {chap.summary}
+                    </p>
+                  )}
+                </div>
+
+                {/* Paragraphs */}
+                <div className="text-sm text-ink-primary leading-relaxed space-y-3 font-serif">
+                  {chap.paragraphs.map((p, idx) => (
+                    <p key={idx} className="text-justify leading-relaxed">
+                      {renderParagraphWithCitations(p)}
+                    </p>
+                  ))}
+                </div>
+
+                {/* Bullet Points */}
+                {chap.bullet_points && chap.bullet_points.length > 0 && (
+                  <div className="space-y-2.5 pt-2">
+                    {chap.bullet_points.map((bp, idx) => (
+                      <div key={idx} className="flex items-start gap-2.5 text-xs text-ink-primary bg-stone-50/60 p-3 rounded border border-border">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                        <div className="leading-relaxed font-serif">
+                          {renderParagraphWithCitations(bp)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Subsections */}
+                {chap.subsections && chap.subsections.length > 0 && (
+                  <div className="space-y-4 pt-2">
+                    {chap.subsections.map((sub, sIdx) => (
+                      <div key={sIdx} className="space-y-2 bg-stone-50/40 p-4 rounded-card border border-border">
+                        <div className="text-xs font-bold text-ink-primary">
+                          {sub.subtitle}
+                        </div>
+                        <div className="space-y-2 text-xs text-ink-secondary font-serif">
+                          {sub.content.map((item, iIdx) => (
+                            <div key={iIdx} className="leading-relaxed">
+                              {renderParagraphWithCitations(item)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* CHAPTER XXI: SOURCE REGISTER CARDS */}
+            <div className="bg-surface rounded-card border border-border p-6 sm:p-7 shadow-subtle space-y-5">
+              <div className="border-b border-border pb-3">
+                <div className="text-xs font-mono font-bold text-primary uppercase tracking-wider">
+                  REGISTER LENGKAP
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-ink-primary mt-0.5">
+                  Verifikasi Sitasi & Register Dokumen Sumber
+                </h3>
+                <p className="text-xs text-ink-secondary">
+                  Klik kartu rujukan untuk membuka riwayat provenance dan data pendukung
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {dossier.sources_list.map((cit) => (
+                  <button
+                    key={cit.index}
+                    onClick={() => handleOpenSourceDrawer(cit)}
+                    className="text-left p-4 rounded-card border border-border bg-stone-50/60 hover:bg-stone-100 hover:border-primary/40 transition-all space-y-2 group shadow-2xs cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-mono text-[10px] font-bold rounded border border-blue-200">
+                        {cit.badge}
+                      </span>
+                      <span className="text-[10px] text-ink-tertiary font-medium">
+                        {cit.tier}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-bold text-ink-primary group-hover:text-primary transition-colors">
+                      {cit.source_name}
+                    </div>
+
+                    <div className="text-[11px] text-ink-secondary line-clamp-2 italic font-serif">
+                      "{cit.title}"
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-ink-tertiary pt-1 border-t border-border">
+                      <span>{cit.published_at ? formatDateIndo(cit.published_at) : 'Tanggal tidak terdata'}</span>
+                      <span className="inline-flex items-center gap-1 text-primary font-medium">
+                        Detail <ExternalLink className="w-2.5 h-2.5" />
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer Paper Signature */}
+            <div className="p-6 bg-stone-100 rounded-card border border-border text-center space-y-2">
+              <div className="text-xs font-bold text-ink-primary">
+                RUANG ISU GMNI — PUSAT RISET & ADVOKASI KEBIJAKAN PUBLIK
+              </div>
+              <div className="text-[11px] text-ink-secondary italic">
+                "Pejuang Pemikir – Pemikir Pejuang. Mengakar di tengah rakyat, membedah dengan ilmu, berjuang untuk keadilan."
+              </div>
+            </div>
+
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Interactive Source Register Drawer */}
       <SourceDrawer

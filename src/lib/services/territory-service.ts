@@ -149,3 +149,42 @@ export function computeWestJavaRegencyBreakdown(issues: Issue[]): { name: string
     };
   }).sort((a, b) => b.count - a.count);
 }
+
+export interface TerritoryCoverageMetrics {
+  jabarTotalRegencies: 27;
+  jabarActiveRegenciesCount: number;
+  jabarCoveragePercentage: number;
+  jabarTotalIssues: number;
+  pwkTotalDistricts: 17;
+  pwkActiveDistrictsCount: number;
+  pwkTotalIssues: number;
+  nationalTotalIssues: number;
+  honestSummary: string;
+}
+
+export function calculateHonestCoverageMetrics(issues: Issue[]): TerritoryCoverageMetrics {
+  const jabarIssues = filterIssuesByTerritory(issues, 'jabar');
+  const breakdown = computeWestJavaRegencyBreakdown(issues);
+  const activeRegencies = breakdown.filter(b => b.count > 0);
+  const jabarActiveCount = activeRegencies.length;
+  
+  const pwkIssues = filterIssuesByTerritory(issues, 'purwakarta');
+  const activePwkDistricts = PURWAKARTA_DISTRICTS.filter(dist => 
+    pwkIssues.some(i => (i.district || '').toLowerCase().includes(dist.toLowerCase()))
+  );
+  
+  const nationalIssues = filterIssuesByTerritory(issues, 'nasional');
+
+  return {
+    jabarTotalRegencies: 27,
+    jabarActiveRegenciesCount: jabarActiveCount,
+    jabarCoveragePercentage: Math.round((jabarActiveCount / 27) * 100),
+    jabarTotalIssues: jabarIssues.length,
+    pwkTotalDistricts: 17,
+    pwkActiveDistrictsCount: activePwkDistricts.length,
+    pwkTotalIssues: pwkIssues.length,
+    nationalTotalIssues: nationalIssues.length,
+    honestSummary: `${jabarActiveCount} dari 27 Kabupaten/Kota di Jawa Barat memiliki isu terpantau aktif.`
+  };
+}
+

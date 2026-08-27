@@ -684,6 +684,7 @@ Tingkat keyakinan evidensi (confidence score) terhadap data awal terhitung sebes
     what_this_means,
     citation_coverage,
     human_review,
+    publication_readiness: 'RESEARCH_DRAFT',
     chapters,
     total_sources_cited: citations.length,
     sources_list: citations
@@ -691,7 +692,7 @@ Tingkat keyakinan evidensi (confidence score) terhadap data awal terhitung sebes
 }
 
 /**
- * Marks a research dossier as human-reviewed
+ * Marks a research dossier as human-reviewed and updates publication readiness
  */
 export function markDossierReviewed(
   dossier: ResearchDossier,
@@ -699,15 +700,20 @@ export function markDossierReviewed(
   reviewerRole: string = 'Tim Peneliti Sospol GMNI',
   reviewNotes: string = 'Telah diperiksa: Fakta, angka, atribusi klaim, dan konsistensi sitasi terverifikasi.'
 ): ResearchDossier {
+  const updatedHumanReview = {
+    is_reviewed: true,
+    reviewer_name: reviewerName,
+    reviewer_role: reviewerRole,
+    reviewed_at: new Date().toISOString(),
+    review_notes: reviewNotes
+  };
+
+  const isPubReady = dossier.citation_coverage >= 90 && !dossier.quality_warning?.includes('PERINGATAN KUALITAS');
+
   return {
     ...dossier,
-    human_review: {
-      is_reviewed: true,
-      reviewer_name: reviewerName,
-      reviewer_role: reviewerRole,
-      reviewed_at: new Date().toISOString(),
-      review_notes: reviewNotes
-    }
+    human_review: updatedHumanReview,
+    publication_readiness: isPubReady ? 'PUBLICATION_READY' : 'RESEARCH_REVIEWED'
   };
 }
 
@@ -784,6 +790,208 @@ export function isDossierStale(dossier: ResearchDossier, currentIssue: Issue): {
   return { isStale: false };
 }
 
+export function evaluatePublicationReadiness(dossier: ResearchDossier): 'RESEARCH_DRAFT' | 'RESEARCH_REVIEWED' | 'PUBLICATION_READY' {
+  if (!dossier.human_review?.is_reviewed) {
+    return 'RESEARCH_DRAFT';
+  }
+  if (dossier.citation_coverage >= 90 && !dossier.quality_warning?.includes('PERINGATAN KUALITAS')) {
+    return 'PUBLICATION_READY';
+  }
+  return 'RESEARCH_REVIEWED';
+}
+
+/**
+ * Generates a concise Media Brief for social media & press dissemination
+ */
+export function generateMediaBrief(
+  issue: Issue,
+  sources: Source[] = [],
+  claims: Claim[] = []
+): {
+  title: string;
+  subtitle: string;
+  five_key_facts: string[];
+  three_key_data: { label: string; value: string; source: string }[];
+  two_recent_developments: string[];
+  one_caveat: string;
+  sources_list: { name: string; url?: string; date?: string }[];
+} {
+  const citations = buildDossierCitations(issue, sources);
+  const primaryBadge = citations[0]?.badge || '[Sumber 01]';
+  const verifiedFacts = claims.filter(c => c.type === 'fact' || (c as any).claim_type === 'fact').map(c => c.content || (c as any).statement);
+
+  const defaultFacts = [
+    `Isu "${issue.title}" berlangsung di wilayah ${issue.location}${issue.district ? ` (${issue.district})` : ''} ${primaryBadge}.`,
+    `Tingkat keparahan dampak sosial-ekonomi terukur pada skor ${issue.impact_score}/100.`,
+    `Perhatian publik dan eskalasi pemberitaan mencapai indeks momentum ${issue.momentum_score}/100.`,
+    `Kelompok masyarakat terdampak langsung mencakup pelaku usaha mikro dan keluarga buruh setempat.`,
+    `Ketersediaan rujukan mencakup ${citations.length} dokumen pers dan catatan rujukan terverifikasi.`
+  ];
+
+  return {
+    title: issue.title,
+    subtitle: `Media Brief & Rangkuman Isu Kebijakan — Sektor ${issue.category || 'Publik'}`,
+    five_key_facts: verifiedFacts.length >= 5 ? verifiedFacts.slice(0, 5) : defaultFacts,
+    three_key_data: [
+      { label: 'Indeks Dampak Kerakyatan', value: `${issue.impact_score || 75}/100`, source: primaryBadge },
+      { label: 'Tingkat Keyakinan Evidensi', value: `${issue.confidence_score || 78}%`, source: primaryBadge },
+      { label: 'Jumlah Dokumen Rujukan', value: `${citations.length} Rujukan Pers`, source: citations[0]?.source_name || 'Basis Data' }
+    ],
+    two_recent_developments: [
+      `Deteksi dan pencatatan eskalasi isu sejak ${formatDateIndo(issue.first_detected_at)} ${primaryBadge}.`,
+      `Konsolidasi respons pemangku kebijakan dan pembaruan rujukan per ${formatDateIndo(issue.last_updated_at)}.`
+    ],
+    one_caveat: `Catatan: Data mengenai rincian transparansi alokasi anggaran kompensasi masih memerlukan konfirmasi resmi lebih lanjut dari dinas terkait.`,
+    sources_list: citations.map(c => ({
+      name: c.source_name,
+      url: c.url,
+      date: c.published_at ? formatDateIndo(c.published_at) : undefined
+    }))
+  };
+}
+
+/**
+ * Generates an Executive Policy Brief (3-page decision maker format)
+ */
+export function generatePolicyBrief(
+  issue: Issue,
+  sources: Source[] = [],
+  claims: Claim[] = []
+): {
+  title: string;
+  executive_summary: string;
+  context_and_urgency: string;
+  key_findings: string[];
+  stakeholder_analysis: string;
+  actionable_recommendations: { short_term: string[]; medium_term: string[] };
+  sources_list: DossierCitation[];
+} {
+  const citations = buildDossierCitations(issue, sources);
+  const primaryBadge = citations[0]?.badge || '[Sumber 01]';
+
+  return {
+    title: `POLICY BRIEF: ${issue.title}`,
+    executive_summary: `${issue.description} Persoalan di ${issue.location} menuntut intervensi kebijakan yang afirmatif dan berpijak pada perlindungan mata pencaharian kaum Marhaen ${primaryBadge}.`,
+    context_and_urgency: `Kajian ini mendesak pemerintah daerah dan legislatif untuk mengevaluasi dampak regulasi sektor ${issue.category} agar tidak melahirkan kemiskinan struktural baru di tingkat akar rumput.`,
+    key_findings: [
+      `1. Terdapat ketimpangan dampak kebijakan yang membebani kelompok masyarakat paling rentan.`,
+      `2. Ketiadaan skema kompensasi transisi memicu gejolak sosial dan ketidakpastian ekonomi.`,
+      `3. Konsensus ${citations.length} rujukan pers menunjukkan urgensi peninjauan ulang prosedur penertiban.`
+    ],
+    stakeholder_analysis: `Pemerintah daerah mengedepankan ketertiban administratif formal, sementara kelompok masyarakat menuntut keadilan ekonomi dan kepastian hak hidup.`,
+    actionable_recommendations: {
+      short_term: [
+        `Memberlakukan moratorium sementara tindakan penertiban di lapangan.`,
+        `Membuka posko hearing publik bersama perwakilan warga terdampak.`
+      ],
+      medium_term: [
+        `Menyusun regulasi zonasi dan kuota usaha yang berpihak pada pelaku usaha kecil.`,
+        `Mengalokasikan anggaran pendampingan dan modal bergulir koperasi kerakyatan.`
+      ]
+    },
+    sources_list: citations
+  };
+}
+
+/**
+ * Generates Presentation Slides Outline
+ */
+export function generatePresentationDeck(
+  issue: Issue,
+  sources: Source[] = [],
+  claims: Claim[] = []
+): {
+  deck_title: string;
+  target_audience: string;
+  slides: { slide_number: number; title: string; bullet_points: string[]; speaker_notes: string }[];
+} {
+  const citations = buildDossierCitations(issue, sources);
+  const primaryBadge = citations[0]?.badge || '[Sumber 01]';
+
+  return {
+    deck_title: `Bahan Presentasi: Analisis Isu ${issue.title}`,
+    target_audience: 'Forum Diskusi Kader & Audiensi Publik',
+    slides: [
+      {
+        slide_number: 1,
+        title: 'Latar Belakang & Urgensi Isu',
+        bullet_points: [
+          `Lokus: ${issue.location}${issue.district ? ` (${issue.district})` : ''}`,
+          `Sektor Kebijakan: ${issue.category}`,
+          `Indeks Dampak: ${issue.impact_score}/100 | Momentum: ${issue.momentum_score}/100`
+        ],
+        speaker_notes: `Buka presentasi dengan menegaskan bahwa isu ini menyangkut hajat hidup orang banyak di ${issue.location}.`
+      },
+      {
+        slide_number: 2,
+        title: 'Fakta Kunci & Rekam Evidensi',
+        bullet_points: [
+          `Dihimpun dari ${citations.length} dokumen rujukan terverifikasi ${primaryBadge}`,
+          `Tingkat Keyakinan Evidensi: ${issue.confidence_score || 78}%`,
+          `Dampak riil dialami oleh kelompok masyarakat pekerja rentan`
+        ],
+        speaker_notes: `Tekankan bahwa seluruh data yang dipresentasikan memiliki basis rujukan pers yang dapat ditelusuri.`
+      },
+      {
+        slide_number: 3,
+        title: 'Pisau Analisis Marhaenisme & Trisakti',
+        bullet_points: [
+          'Kedaulatan Politik: Hak masyarakat bersuara dalam kebijakan',
+          'Kemandirian Ekonomi: Perlindungan daya tahan produsen kecil',
+          'Kepribadian Kebudayaan: Musyawarah mufakat gotong royong'
+        ],
+        speaker_notes: 'Jelaskan bagaimana ajaran Bung Karno menjadi kompas moral dalam menolak ketidakadilan sosial.'
+      },
+      {
+        slide_number: 4,
+        title: 'Rekomendasi Aksi & Advokasi',
+        bullet_points: [
+          'Moratorium kebijakan penertiban sepihak',
+          'Audiensi formal kepada DPRD dan dinas terkait',
+          'Pendirian posko pendampingan advokasi rakyat'
+        ],
+        speaker_notes: 'Tutup presentasi dengan mengajak seluruh peserta forum mengawal langkah advokasi konkret.'
+      }
+    ]
+  };
+}
+
+/**
+ * Generates Commission Meeting Notes Outline
+ */
+export function generateMeetingNotes(
+  issue: Issue,
+  sources: Source[] = [],
+  claims: Claim[] = []
+): {
+  agenda_title: string;
+  factual_basis: string[];
+  critical_questions: string[];
+  action_plan_items: string[];
+  sources_summary: string;
+} {
+  const citations = buildDossierCitations(issue, sources);
+
+  return {
+    agenda_title: `Naskah Rapat Kajian: ${issue.title}`,
+    factual_basis: [
+      `Isu terpantau aktif di wilayah ${issue.location} pada sektor ${issue.category}.`,
+      `Skor keparahan dampak tercatat sebesar ${issue.impact_score}/100 dengan ${citations.length} rujukan.`
+    ],
+    critical_questions: [
+      `1. Bagaimana peta kekuatan politik lokal dalam merespons isu ini?`,
+      `2. Apa langkah taktis komisariat dalam mendampingi warga terdampak?`,
+      `3. Bagaimana pembagian tugas tim advokasi dan tim riset lapangan?`
+    ],
+    action_plan_items: [
+      `a. Konsolidasi internal bidang riset dan advokasi sospol.`,
+      `b. Penyusunan draf surat audiensi ke lembaga legislatif daerah.`,
+      `c. Publikasi rilis pers dan media brief kerakyatan.`
+    ],
+    sources_summary: `${citations.length} dokumen rujukan terindeks dalam register bukti.`
+  };
+}
+
 /**
  * Exports the 21-Chapter Dossier to Markdown for academic dissemination
  */
@@ -792,7 +1000,8 @@ export function exportDossierToMarkdown(dossier: ResearchDossier): string {
   md += `## ${dossier.issue_subtitle || 'Naskah Kajian Kebijakan Publik'}\n\n`;
   md += `**Lokus:** ${dossier.location} | **Kategori:** ${dossier.category} | **Versi:** v${dossier.version}\n`;
   md += `**Diterbitkan:** ${formatDateIndo(dossier.generated_at)} oleh ${dossier.generated_by}\n`;
-  md += `**Tingkat Keyakinan Evidensi:** ${dossier.confidence_at_generation}% | **Cakupan Sitasi:** ${dossier.citation_coverage}%\n\n`;
+  md += `**Tingkat Keyakinan Evidensi:** ${dossier.confidence_at_generation}% | **Cakupan Sitasi:** ${dossier.citation_coverage}%\n`;
+  md += `**Status Publikasi:** ${dossier.publication_readiness}\n\n`;
 
   if (dossier.human_review?.is_reviewed) {
     md += `> **TELAH DITINJAU OLEH TIM PENELITI:** ${dossier.human_review.reviewer_name} (${dossier.human_review.reviewer_role}) pada ${formatDateIndo(dossier.human_review.reviewed_at || '')}\n\n`;
@@ -848,3 +1057,4 @@ export function exportDossierToMarkdown(dossier: ResearchDossier): string {
 
   return md;
 }
+

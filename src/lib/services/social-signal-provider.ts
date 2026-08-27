@@ -93,3 +93,12 @@ export class SocialSignalProvider {
     };
   }
 }
+
+export function createSignal(data: Partial<SocialSignal>): SocialSignal {
+  return SocialSignalProvider.createSignal(data);
+}
+
+export function calculatePublicAttentionIndex(signals: SocialSignal[]) {
+  return SocialSignalProvider.calculatePublicAttentionIndex(signals);
+}
+
