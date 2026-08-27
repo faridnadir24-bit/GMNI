@@ -11,10 +11,13 @@ import {
   ShieldCheck, 
   Check, 
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Lock,
+  Layers
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { UserRole } from '@/types';
+import { ROLE_CONFIGS } from '@/lib/services/permissions';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -46,12 +49,7 @@ export default function Navbar() {
     { name: 'Kajian', href: '/kajian' },
   ];
 
-  const roleLabels: Record<UserRole, { title: string; badge: string }> = {
-    admin: { title: 'Administrator', badge: 'Admin' },
-    researcher: { title: 'Peneliti SosPol', badge: 'Peneliti' },
-    member: { title: 'Kader GMNI', badge: 'Kader' },
-    public: { title: 'Publik', badge: 'Publik' },
-  };
+  const availableRoles: UserRole[] = ['public', 'kader', 'researcher', 'admin'];
 
   return (
     <header className="sticky top-0 z-40 bg-surface border-b border-border transition-colors">
@@ -113,11 +111,11 @@ export default function Navbar() {
                   ? 'bg-muted text-ink-secondary border-border cursor-not-allowed'
                   : 'bg-surface hover:bg-muted text-ink-primary border-border active:scale-95'
               }`}
-              title="Tarik & Sinkronisasi Berita Real-Time dari Media Nasional & Daerah"
+              title="Tarik & Sinkronisasi Berita dari Media Nasional & Daerah"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-primary ${isSyncingNews ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline text-[11px]">
-                {isSyncingNews ? 'Menarik Berita...' : 'Tarik Berita'}
+                {isSyncingNews ? 'Menarik...' : 'Tarik Berita'}
               </span>
             </button>
 
@@ -128,43 +126,65 @@ export default function Navbar() {
               title="Cari Isu, Fakta, Aktor (Ctrl+K)"
             >
               <Search className="w-3.5 h-3.5 text-ink-tertiary" />
-              <span className="hidden sm:inline text-[11px]">Cari isu...</span>
+              <span className="hidden sm:inline text-[11px]">Cari...</span>
               <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-surface border border-border rounded text-ink-tertiary">
                 ⌘K
               </kbd>
             </button>
 
-            {/* Role Switcher */}
+            {/* Mode Akses Role Switcher */}
             <div className="relative">
               <button
                 onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-btn border border-border bg-surface hover:bg-muted text-ink-primary transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-btn border border-border bg-surface hover:bg-muted text-ink-primary transition-colors shadow-subtle"
+                title="Ganti Mode Akses (Publik, Kader, Peneliti, Admin)"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-ink-secondary" />
-                <span className="hidden md:inline text-[11px]">{roleLabels[role].badge}</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+                <span className="hidden md:inline text-[11px]">
+                  Mode: <span className="font-bold text-ink-primary">{ROLE_CONFIGS[role]?.shortLabel || role}</span>
+                </span>
                 <ChevronDown className="w-3 h-3 text-ink-tertiary" />
               </button>
 
               {isRoleDropdownOpen && (
-                <div className="absolute right-0 mt-1.5 w-48 bg-surface rounded-card shadow-card border border-border py-1.5 z-50 animate-in fade-in">
-                  <div className="px-3 py-1 text-[10px] font-semibold text-ink-tertiary uppercase tracking-wider border-b border-border">
-                    Hak Akses Peran
+                <div className="absolute right-0 mt-1.5 w-72 bg-surface rounded-card shadow-card border border-border py-2 z-50 animate-in fade-in">
+                  <div className="px-3 pb-2 border-b border-border">
+                    <div className="text-[10px] font-bold text-ink-tertiary uppercase tracking-wider">
+                      Mode Akses & Hak Peran
+                    </div>
+                    <div className="text-[11px] text-ink-secondary mt-0.5">
+                      Ubah kapabilitas telaah isu sesuai peran kerja.
+                    </div>
                   </div>
-                  {(['admin', 'researcher', 'member', 'public'] as UserRole[]).map(r => (
-                    <button
-                      key={r}
-                      onClick={() => {
-                        setRole(r);
-                        setIsRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between hover:bg-muted transition-colors ${
-                        role === r ? 'text-primary font-semibold bg-stone-50' : 'text-ink-primary'
-                      }`}
-                    >
-                      <span>{roleLabels[r].title}</span>
-                      {role === r && <Check className="w-3 h-3 text-primary" />}
-                    </button>
-                  ))}
+
+                  <div className="p-1 space-y-1">
+                    {availableRoles.map(r => {
+                      const cfg = ROLE_CONFIGS[r];
+                      const isSelected = role === r || (role === 'member' && r === 'kader');
+                      return (
+                        <button
+                          key={r}
+                          onClick={() => {
+                            setRole(r);
+                            setIsRoleDropdownOpen(false);
+                          }}
+                          className={`w-full text-left p-2 rounded text-xs transition-colors space-y-0.5 ${
+                            isSelected 
+                              ? 'bg-stone-900 text-white font-semibold shadow-sm' 
+                              : 'hover:bg-stone-100 text-ink-primary'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold">{cfg.label}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                          </div>
+                          <p className={`text-[11px] leading-tight line-clamp-2 ${isSelected ? 'text-stone-300' : 'text-ink-tertiary'}`}>
+                            {cfg.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>

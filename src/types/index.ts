@@ -23,7 +23,7 @@ export type NormalizedSourceType =
   | 'public_signal' 
   | 'unknown';
 
-export type UserRole = 'admin' | 'researcher' | 'member' | 'public';
+export type UserRole = 'admin' | 'researcher' | 'kader' | 'member' | 'public';
 
 export interface IssueAISummary {
   what_happened: string;
@@ -342,3 +342,65 @@ export interface BahanKajianDocument {
     daftar_pustaka: { title: string; source: string; year: string }[];
   };
 }
+
+export type DossierStatus = 'current' | 'stale' | 'archived';
+
+export interface DossierCitation {
+  index: number;
+  source_id: string;
+  source_name: string;
+  title: string;
+  url?: string;
+  published_at?: string;
+  tier: string;
+  badge: string;
+}
+
+export interface DossierChapter {
+  id: string;
+  number: string;
+  title: string;
+  summary?: string;
+  paragraphs: string[];
+  bullet_points?: string[];
+  subsections?: {
+    subtitle: string;
+    content: string[];
+  }[];
+  citations?: DossierCitation[];
+}
+
+export interface ResearchDossier {
+  id: string;
+  issue_id: string;
+  issue_title: string;
+  issue_slug: string;
+  version: number;
+  generated_at: string;
+  generated_by: string;
+  confidence_at_generation: number;
+  status: DossierStatus;
+  is_stale: boolean;
+  staleness_reason?: string;
+  quality_warning?: string;
+  chapters: DossierChapter[];
+  total_sources_cited: number;
+  sources_list: DossierCitation[];
+}
+
+export interface DiscussionBrief {
+  id: string;
+  issue_id: string;
+  issue_title: string;
+  generated_at: string;
+  executive_summary: string;
+  five_discussion_questions: string[];
+  five_key_facts: string[];
+  three_data_gaps: string[];
+  three_stakeholder_angles: {
+    stakeholder: string;
+    perspective: string;
+  }[];
+  initial_conclusion: string;
+}
+

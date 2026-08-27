@@ -7,12 +7,22 @@ import { ConfidenceExplanation } from '@/types';
 interface ConfidenceExplainerProps {
   confidenceMeta?: ConfidenceExplanation;
   score?: number;
+  confidenceScore?: number;
+  evidenceScore?: number;
+  sourcesCount?: number;
+  explanation?: ConfidenceExplanation;
 }
 
-export default function ConfidenceExplainer({ confidenceMeta, score = 75 }: ConfidenceExplainerProps) {
+export default function ConfidenceExplainer({ 
+  confidenceMeta, 
+  score = 75,
+  confidenceScore,
+  explanation
+}: ConfidenceExplainerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const displayScore = confidenceMeta?.score ?? score;
+  const meta = confidenceMeta || explanation;
+  const displayScore = meta?.score ?? confidenceScore ?? score;
 
   const getScoreColor = (val: number) => {
     if (val >= 80) return 'text-emerald-700 bg-emerald-50 border-emerald-200';
