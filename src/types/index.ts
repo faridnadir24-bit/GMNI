@@ -1,5 +1,7 @@
 export type RegionScope = 'all' | 'purwakarta' | 'jabar' | 'nasional';
 
+export type DataStatus = 'loading' | 'success' | 'empty' | 'error';
+
 export type IssueStatus = 'Emerging' | 'Monitoring' | 'Developing' | 'Confirmed' | 'Archived';
 
 export type PriorityLevel = 'Tinggi' | 'Sedang' | 'Rendah';

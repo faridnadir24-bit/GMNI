@@ -252,7 +252,7 @@ export default function IssueDetailPage() {
           <div>·</div>
           <div>Jumlah Rujukan: {issue.sources_count} Sumber</div>
           <div>·</div>
-          <div className="text-emerald-700 font-sans font-medium">● Near Real-Time Synced</div>
+          <div className="text-emerald-700 font-sans font-medium">● Pantauan Terhubung</div>
         </div>
       </div>
 

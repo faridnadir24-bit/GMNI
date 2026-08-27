@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useApp } from '@/context/AppContext';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface StatCardsProps {
   totalIssues?: number;
@@ -12,7 +13,7 @@ interface StatCardsProps {
 }
 
 export default function StatCards(props: StatCardsProps) {
-  const { issues, isLoadingDb, isRealData, syncStatus, lastSyncedTime } = useApp();
+  const { issues, isLoadingDb, dataStatus, syncStatus, lastSyncedTime, refreshDbData } = useApp();
 
   const total = props.totalIssues ?? (issues.length > 0 ? issues.length : (syncStatus?.total_issues ?? 0));
   const newCount = props.newIssues ?? issues.filter(i => {
@@ -32,18 +33,23 @@ export default function StatCards(props: StatCardsProps) {
   ];
 
   return (
-    <div className="bg-surface border border-border rounded-card p-4 sm:p-5 shadow-subtle">
+    <div className="bg-surface border border-border rounded-card p-4 sm:p-5 shadow-subtle space-y-3">
+      {/* Header Info */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border text-xs text-ink-secondary">
         <div className="flex items-center gap-2">
           <span className="font-semibold uppercase tracking-wider text-[11px] text-ink-primary">
             Ringkasan Pantauan Isu
           </span>
-          <span className={`w-1.5 h-1.5 rounded-full ${isLoadingDb ? 'bg-amber-500 animate-pulse' : 'bg-emerald-600'}`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${isLoadingDb ? 'bg-amber-500 animate-pulse' : dataStatus === 'error' ? 'bg-red-500' : 'bg-emerald-600'}`} />
         </div>
 
         <div className="flex items-center gap-3 text-[11px] font-mono text-ink-tertiary">
           <span>
-            {isLoadingDb ? 'Menghubungkan basis data...' : (lastSyncedTime ? `Sinkronisasi: ${lastSyncedTime} WIB` : 'Pantauan Terhubung')}
+            {isLoadingDb 
+              ? 'Memuat pantauan isu...' 
+              : dataStatus === 'error'
+              ? 'Koneksi data tertunda'
+              : (lastSyncedTime ? `Sinkronisasi: ${lastSyncedTime} WIB` : 'Pantauan Terhubung')}
           </span>
           <span className="hidden sm:inline">·</span>
           <span className="hidden sm:inline">
@@ -52,7 +58,25 @@ export default function StatCards(props: StatCardsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 pt-3.5 divide-y sm:divide-y-0 sm:divide-x divide-border">
+      {/* Error state alert */}
+      {dataStatus === 'error' && issues.length === 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-800 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>Data pantauan belum dapat dimuat dari server.</span>
+          </div>
+          <button 
+            onClick={() => refreshDbData()}
+            className="font-semibold underline hover:text-red-950 text-xs inline-flex items-center gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Coba Lagi</span>
+          </button>
+        </div>
+      )}
+
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 pt-1 divide-y sm:divide-y-0 sm:divide-x divide-border">
         {metrics.map((item, idx) => (
           <div key={idx} className={`${idx !== 0 ? 'sm:pl-4' : ''} pt-2 sm:pt-0 space-y-1`}>
             <div className="flex items-baseline gap-1.5">

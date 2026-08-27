@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Bookmark, BookmarkCheck } from 'lucide-react';
+import { ArrowRight, Bookmark, BookmarkCheck, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Issue } from '@/types';
 import { formatDateIndo } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
@@ -24,7 +24,7 @@ export default function PriorityBoard({
   subtitle = "Peringkat isu berdasarkan skor dampak kebijakan dan ketersediaan bukti sumber data.",
   limit
 }: PriorityBoardProps) {
-  const { savedIssueIds, toggleSaveIssue, isLoadingDb } = useApp();
+  const { savedIssueIds, toggleSaveIssue, isLoadingDb, dataStatus, refreshDbData } = useApp();
   const displayIssues = limit ? issues.slice(0, limit) : issues;
 
   return (
@@ -58,6 +58,19 @@ export default function PriorityBoard({
               <div className="h-16 bg-stone-100 rounded" />
             </div>
           ))}
+        </div>
+      ) : dataStatus === 'error' && displayIssues.length === 0 ? (
+        <div className="bg-surface rounded-card border border-red-200 p-8 text-center space-y-3">
+          <AlertTriangle className="w-8 h-8 text-red-600 mx-auto" />
+          <p className="text-sm font-semibold text-ink-primary">Data pantauan belum dapat dimuat</p>
+          <p className="text-xs text-ink-secondary max-w-sm mx-auto">Terjadi kendala saat menghubungkan ke basis data server. Silakan muat ulang.</p>
+          <button
+            onClick={() => refreshDbData()}
+            className="px-4 py-2 bg-stone-900 text-white text-xs font-semibold rounded-btn hover:bg-stone-800 inline-flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Muat Ulang Data</span>
+          </button>
         </div>
       ) : displayIssues.length === 0 ? (
         <div className="bg-surface rounded-card border border-border p-8 text-center space-y-2">
@@ -102,59 +115,46 @@ export default function PriorityBoard({
 
                 {/* Title */}
                 <Link href={`/isu/${issue.slug}`} className="block group-hover:text-primary transition-colors">
-                  <h3 className="text-sm sm:text-base font-bold text-ink-primary leading-snug">
+                  <h3 className="text-sm sm:text-base font-bold text-ink-primary line-clamp-2 leading-snug">
                     {issue.title}
                   </h3>
                 </Link>
 
-                {/* Location & Category Badges */}
-                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {/* Description */}
+                <p className="text-xs text-ink-secondary line-clamp-3 leading-relaxed">
+                  {issue.description}
+                </p>
+
+                {/* Badges: Location & Category */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
                   <LocationBadge location={issue.location} district={issue.district} size="sm" />
                   <CategoryBadge category={issue.category} />
                 </div>
-
-                {/* Summary */}
-                <p className="text-xs text-ink-secondary line-clamp-2 leading-relaxed">
-                  {issue.description}
-                </p>
               </div>
 
-              {/* Score Indicators Matrix */}
-              <div className="space-y-3 pt-3 border-t border-border/80">
-                <div className="space-y-2 bg-stone-50/60 p-3 rounded-btn border border-border/60">
-                  <ScoreIndicator label="Impact Score" score={issue.impact_score} accent={issue.impact_score >= 85} />
-                  <ScoreIndicator label="Evidence Score" score={issue.evidence_score} />
+              {/* Score Strip */}
+              <div className="pt-3 border-t border-border space-y-3">
+                <div className="grid grid-cols-4 gap-1.5 text-center bg-stone-50/60 p-2 rounded border border-border/60">
+                  <ScoreIndicator label="Dampak" score={issue.impact_score} />
+                  <ScoreIndicator label="Bukti" score={issue.evidence_score} />
                   <ScoreIndicator label="Momentum" score={issue.momentum_score} />
+                  <ScoreIndicator label="Keyakinan" score={issue.confidence_score || 75} />
                 </div>
 
-                {/* Footnote meta */}
+                {/* Card Bottom: Sources Count & Date */}
                 <div className="flex items-center justify-between text-[11px] text-ink-tertiary">
-                  <span>{issue.sources_count} sumber</span>
-                  <span>Diperbarui {formatDateIndo(issue.last_updated_at)}</span>
-                </div>
-
-                {/* Card Action Buttons */}
-                <div className="flex items-center gap-2 pt-1">
-                  <Link
-                    href={`/ai-analyst?issue=${issue.id}`}
-                    className="flex-1 text-center py-2 px-3 bg-ink-primary hover:bg-black text-white text-xs font-semibold rounded-btn transition-colors"
-                  >
-                    Analisis
-                  </Link>
-
-                  <Link
-                    href={`/isu/${issue.slug}`}
-                    className="py-2 px-3 bg-surface hover:bg-muted text-ink-primary text-xs font-medium rounded-btn border border-border transition-colors"
-                  >
-                    Detail
-                  </Link>
+                  <span className="font-mono">
+                    {issue.sources_count} Rujukan Media
+                  </span>
+                  <span>
+                    {formatDateIndo(issue.last_updated_at)}
+                  </span>
                 </div>
               </div>
-
             </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );

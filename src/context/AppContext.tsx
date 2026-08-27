@@ -1,10 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Issue, UserRole, BahanKajianDocument, Claim, Source, Article } from '@/types';
-import { mockIssues } from '@/data/mockIssues';
-import { mockClaims } from '@/data/mockClaims';
-import { mockSources } from '@/data/mockSources';
+import { Issue, UserRole, BahanKajianDocument, Claim, Source, Article, DataStatus } from '@/types';
 import { mockKajianDocs } from '@/data/mockKajian';
 import { supabase, isSupabaseConfigured } from '@/lib/services/supabase';
 import { mapSupabaseRowToIssue, extractClaimsFromRow, extractSourcesFromRow, SupabaseIssueRow } from '@/lib/services/issue-adapter';
@@ -28,6 +25,7 @@ interface AppContextType {
   setRole: (role: UserRole) => void;
   issues: Issue[];
   articles: Article[];
+  dataStatus: DataStatus;
   addIssue: (issue: Issue) => void;
   claims: Claim[];
   addClaim: (claim: Claim) => void;
@@ -62,6 +60,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [savedIssueIds, setSavedIssueIds] = useState<string[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [dataStatus, setDataStatus] = useState<DataStatus>('loading');
   const [isLoadingDb, setIsLoadingDb] = useState(true);
   const [isSyncingNews, setIsSyncingNews] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
@@ -71,19 +70,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Fetch real data from Supabase / API
   const refreshDbData = useCallback(async () => {
     setIsLoadingDb(true);
+    let loadedIssues: Issue[] = [];
+    let isApiSuccess = false;
+    let apiCount = 0;
+    let dbCount = 0;
 
     try {
-      // 1. Fetch Issues
+      // 1. Fetch Issues from API
       const issuesRes = await fetch('/api/issues', { cache: 'no-store' });
       if (issuesRes.ok) {
         const json = await issuesRes.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          setIssues(json.data);
-          setIsRealData(true);
+        if (json.success && Array.isArray(json.data)) {
+          isApiSuccess = true;
+          apiCount = json.data.length;
+          if (json.data.length > 0) {
+            loadedIssues = json.data;
+            setIssues(json.data);
+            setIsRealData(true);
+            setDataStatus('success');
+          } else {
+            setDataStatus('empty');
+          }
         }
       }
 
-      // 2. Fetch Articles
+      // 2. Fetch Articles from API
       const artRes = await fetch('/api/articles?limit=40', { cache: 'no-store' });
       if (artRes.ok) {
         const artJson = await artRes.json();
@@ -92,49 +103,68 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 3. Fetch Sync Status
+      // 3. Fetch Sync Status from API
       const statusRes = await fetch('/api/sync-status', { cache: 'no-store' });
       if (statusRes.ok) {
         const statusJson = await statusRes.json();
         if (statusJson.success && statusJson.data) {
           setSyncStatus(statusJson.data);
+          dbCount = statusJson.data.total_issues || 0;
           if (statusJson.data.last_sync_at) {
             setLastSyncedTime(new Date(statusJson.data.last_sync_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
           }
         }
       }
     } catch (e) {
-      console.warn('[AppContext] API route fetch fallback to direct Supabase client');
+      console.warn('[AppContext] API route fetch failed, falling back to direct Supabase client');
     }
 
-    // Direct Supabase Client fallback if API route fails
-    if (isSupabaseConfigured()) {
+    // Direct Supabase Client fallback if API route returned 0 or failed
+    if (loadedIssues.length === 0 && isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
           .from('issues')
           .select('*')
           .order('detected_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
-          const rows = data as SupabaseIssueRow[];
-          const mappedIssues = rows.map(mapSupabaseRowToIssue);
-          const mappedClaims = rows.flatMap(extractClaimsFromRow);
-          const mappedSources = rows.flatMap(extractSourcesFromRow);
+        if (!error && data) {
+          dbCount = data.length;
+          if (data.length > 0) {
+            const rows = data as SupabaseIssueRow[];
+            const mappedIssues = rows.map(mapSupabaseRowToIssue);
+            const mappedClaims = rows.flatMap(extractClaimsFromRow);
+            const mappedSources = rows.flatMap(extractSourcesFromRow);
 
-          setIssues(mappedIssues);
-          setClaims(mappedClaims);
-          setSources(mappedSources);
-          setIsRealData(true);
+            setIssues(mappedIssues);
+            setClaims(mappedClaims);
+            setSources(mappedSources);
+            setIsRealData(true);
+            setDataStatus('success');
+            loadedIssues = mappedIssues;
+          } else {
+            setDataStatus('empty');
+          }
+        } else if (error) {
+          console.error('[AppContext] Supabase client error:', error);
+          if (!isApiSuccess) setDataStatus('error');
         }
       } catch (err) {
-        console.warn('[AppContext] Error connecting to Supabase:', err);
+        console.error('[AppContext] Direct Supabase exception:', err);
+        if (!isApiSuccess) setDataStatus('error');
       }
     }
 
-    setIsLoadingDb(false);
-  }, []);
+    if (loadedIssues.length === 0 && !isApiSuccess && dataStatus !== 'empty') {
+      setDataStatus('error');
+    }
 
-  // Trigger On-Demand Real-Time News Ingestion
+    // Diagnostic internal trace
+    console.log(`[PROD DATA TRACE] issues_db = ${dbCount || loadedIssues.length}, issues_api = ${apiCount}, issues_frontend = ${loadedIssues.length}, status = ${loadedIssues.length > 0 ? 'success' : dataStatus}`);
+
+    setIsLoadingDb(false);
+  }, [dataStatus]);
+
+  // Trigger On-Demand News Ingestion
   const syncLiveNews = useCallback(async (): Promise<SyncResult> => {
     setIsSyncingNews(true);
 
@@ -152,7 +182,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsSyncingNews(false);
         return {
           success: true,
-          message: data.message || 'Sinkronisasi berita real-time berhasil.',
+          message: data.message || 'Sinkronisasi berita berhasil.',
           count: data.data?.summary?.newIssuesCreated || 0,
         };
       } else {
@@ -174,7 +204,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refreshDbData();
 
-    // Supabase Realtime Subscription (if supported)
+    // Supabase Realtime Subscription
     let channel: any = null;
     if (isSupabaseConfigured()) {
       try {
@@ -189,7 +219,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Near real-time periodic background sync (every 60s)
+    // Periodic background sync polling (every 60s)
     const interval = setInterval(() => {
       refreshDbData();
     }, 60000);
@@ -211,24 +241,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const addIssue = (newIssue: Issue) => {
-    setIssues(prev => [newIssue, ...prev]);
+  const addIssue = (issue: Issue) => {
+    setIssues(prev => [issue, ...prev]);
   };
 
-  const addClaim = (newClaim: Claim) => {
-    setClaims(prev => [newClaim, ...prev]);
+  const addClaim = (claim: Claim) => {
+    setClaims(prev => [claim, ...prev]);
   };
 
-  const addSource = (newSource: Source) => {
-    setSources(prev => [newSource, ...prev]);
+  const addSource = (source: Source) => {
+    setSources(prev => [source, ...prev]);
   };
 
-  const addKajianDoc = (newDoc: BahanKajianDocument) => {
-    setKajianDocs(prev => [newDoc, ...prev]);
+  const addKajianDoc = (doc: BahanKajianDocument) => {
+    setKajianDocs(prev => [doc, ...prev]);
   };
 
   const toggleSaveIssue = (id: string) => {
-    setSavedIssueIds(prev =>
+    setSavedIssueIds(prev => 
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
@@ -240,6 +270,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setRole,
         issues,
         articles,
+        dataStatus,
         addIssue,
         claims,
         addClaim,

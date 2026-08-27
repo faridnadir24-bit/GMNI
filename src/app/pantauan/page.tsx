@@ -26,7 +26,6 @@ import CategoryBadge from '@/components/ui/CategoryBadge';
 import LocationBadge from '@/components/ui/LocationBadge';
 import StatusBadge from '@/components/ui/StatusBadge';
 import ScoreIndicator from '@/components/ui/ScoreIndicator';
-import { mockSignals } from '@/data/mockSignals';
 import { IssueEvent } from '@/types';
 
 export default function PantauanPage() {
@@ -119,7 +118,7 @@ export default function PantauanPage() {
           <div className="flex items-center gap-2">
             <Radio className="w-4 h-4 text-primary animate-pulse" />
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-secondary">
-              Near Real-Time Intelligence
+              Pemantauan Berkala Terhubung
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-ink-primary">
