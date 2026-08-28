@@ -417,7 +417,25 @@ export default function DossierView({
             </button>
           </div>
 
-          <div className="space-y-4 text-xs sm:text-sm text-ink-primary">
+          <div className="space-y-5 text-xs sm:text-sm text-ink-primary">
+            {/* Spoken Script ready to be read aloud */}
+            <div className="p-4 rounded-card bg-stone-50 border border-border space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-xs uppercase text-primary tracking-wider">
+                  🎙️ Naskah Pengantar Rapat (Dapat Langsung Dibacakan)
+                </div>
+                <button
+                  onClick={() => copyCustomFormat(meetingNotes.spoken_script)}
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
+                  Salin Naskah Pidato
+                </button>
+              </div>
+              <p className="text-xs sm:text-sm font-serif text-ink-secondary leading-relaxed whitespace-pre-line italic bg-white p-3.5 rounded border border-border">
+                "{meetingNotes.spoken_script}"
+              </p>
+            </div>
+
             <div className="space-y-2">
               <div className="font-bold text-xs uppercase text-ink-primary">1. Basis Faktual Pokok</div>
               <div className="space-y-1.5">
@@ -437,7 +455,14 @@ export default function DossierView({
             </div>
 
             <div className="space-y-2">
-              <div className="font-bold text-xs uppercase text-ink-primary">3. Rencana Aksi & Pembagian Tim</div>
+              <div className="font-bold text-xs uppercase text-ink-primary">3. Posisi Ideologis & Sikap Politik</div>
+              <div className="p-3 rounded bg-blue-50/70 border border-blue-200 text-blue-950 font-serif leading-relaxed">
+                {meetingNotes.discussion_position}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase text-ink-primary">4. Rencana Aksi & Pembagian Tim</div>
               <div className="space-y-1.5">
                 {meetingNotes.action_plan_items.map((ap, i) => (
                   <div key={i} className="p-2.5 rounded bg-emerald-50/60 border border-emerald-200 text-emerald-900">{ap}</div>

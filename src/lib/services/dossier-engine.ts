@@ -323,14 +323,16 @@ export function generateResearchDossier(
     }
   ];
 
-  // 5. EXECUTIVE SUMMARY (500-800 Words answering 9 Core Questions)
-  const executive_summary = `Kajian strategis kebijakan publik ini membedah secara mendalam isu "${issue.title}" yang mengemuka di wilayah ${locationStr}${districtStr} pada sektor kebijakan ${categoryStr}. Berdasarkan konsolidasi ${citations.length} dokumen rujukan pers arus utama dan catatan kebijakan resmi yang dihimpun oleh Ruang Isu GMNI Wastukancana ${primaryCitation}, persoalan ini berakar dari benturan antara instrumen regulasi penertiban administratif pemerintah daerah dengan keberlanjutan ruang hidup dan mata pencaharian masyarakat kecil (kaum Marhaen). 
+  // 5. EXECUTIVE SUMMARY (500-800 Words answering 10 Core Questions)
+  const executive_summary = `Kajian strategis kebijakan publik ini membedah secara mendalam dan komprehensif persoalan "${issue.title}" yang mengemuka di wilayah teritorial ${locationStr}${districtStr} pada sektor tata kelola ${categoryStr}. Berdasarkan konsolidasi ${citations.length} dokumen rujukan pers arus utama dan catatan kebijakan resmi yang dihimpun oleh Intelligence Engine Ruang Isu GMNI Wastukancana ${primaryCitation}, persoalan ini berakar dari benturan mendasar antara instrumen penertiban regulasi administratif pemerintah daerah dengan hak kelangsungan hidup dan kemandirian ekonomi masyarakat produsen kecil (kaum Marhaen). Kebijakan yang dirancang secara seragam tanpa mempertimbangkan ketimpangan penguasaan sarana produksi secara struktural menempatkan rakyat kecil pada posisi yang paling rentan tersingkir dari ruang hidup mereka sendiri.
 
-Persoalan ini mulai terdeteksi dalam radar pemantauan sejak tanggal ${formatDateIndo(issue.first_detected_at)} dan terus mengalami eskalasi hingga pembaruan termutakhir per tanggal ${formatDateIndo(issue.last_updated_at)} ${secondaryCitation}. Skala dampak persoalan terukur pada indeks keparahan (impact score) sebesar ${issue.impact_score || 75}/100, sementara intensitas perhatian publik dan eskalasi pemberitaan mencapai indeks momentum ${issue.momentum_score || 60}/100. Pihak yang menanggung beban terberat dari dinamika ini adalah kelompok produsen kecil, keluarga buruh harian, dan pelaku usaha mikro lokal yang berada dalam posisi paling rentan terhadap perubahan kebijakan sepihak.
+Secara kronologis, dinamika persoalan mulai terdeteksi dalam radar pengawasan sejak ${formatDateIndo(issue.first_detected_at)} dan terus mengalami eskalasi dampak hingga pembaruan termutakhir per tanggal ${formatDateIndo(issue.last_updated_at)} ${secondaryCitation}. Skala keparahan dampak kebijakan terukur secara kuantitatif pada skor ${issue.impact_score || 75}/100, sementara intensitas perhatian publik dan eskalasi perbincangan di ruang publik mencapai indeks momentum ${issue.momentum_score || 60}/100. Pihak yang menanggung beban kerentanan sosial terberat adalah keluarga buruh harian, produsen kecil mandiri, dan pelaku usaha mikro lokal yang mendadak kehilangan kepastian berusaha tanpa adanya mekanisme jaring pengaman sosial atau jaminan perlindungan mata pencaharian alternatif yang layak.
 
-Aktor-aktor kunci yang teridentifikasi mencakup instansi pemerintah daerah dan dinas teknis sebagai pembuat kebijakan formal, aparat penertiban lapangan, perwakilan serikat warga terdampak, serta organisasi advokasi mahasiswa GMNI. Evidensi utama yang terdokumentasi membuktikan bahwa tindakan penertiban di lapangan telah memicu penurunan drastis perputaran ekonomi rakyat di ${locationStr}, sementara skema jaring pengaman sosial atau kompensasi mata pencaharian alternatif belum direalisasikan secara transparan.
+Konstelasi aktor kunci yang teridentifikasi dalam peristiwa ini mencakup jajaran pemerintah daerah dan dinas teknis sektoral selaku pembuat kebijakan administratif formal, aparat penertiban lapangan selaku eksekutor tata ruang, aliansi perwakilan warga terdampak selaku pihak yang dirugikan, serta organisasi mahasiswa DPC GMNI Wastukancana Purwakarta selaku pendamping advokasi kerakyatan ${officialCitation}. Evidensi empiris utama yang terdokumentasi membuktikan bahwa pelaksanaan tindakan penertiban sepihak secara langsung memicu penurunan drastis perputaran ekonomi harian warga setempat, sementara program bantuan kompensasi transisi maupun penyediaan lokasi berusaha pengganti belum terealisasi secara transparan dan terukur di lapangan.
 
-Perkembangan mutakhir menunjukkan adanya tuntutan audensi dari warga dan desakan peninjauan ulang regulasi kepada pihak legislatif daerah ${officialCitation}. Namun demikian, tim riset mencatat adanya data gap kritis yang belum tersedia, khususnya salinan dokumen transparansi anggaran penanganan dan data sensus tunggal kepala keluarga terdampak. Urgensi pengawalan isu ini terletak pada pencegahan pemiskinan struktural baru di Jawa Barat. GMNI merekomendasikan pemberlakuan moratorium penertiban sepihak, pembukaan posko pengaduan rakyat, dan penyusunan tata kelola kolaboratif yang menjamin kedaulatan ekonomi rakyat sesuai amanat Trisakti.`;
+Ditinjau dari pisau analisis Marhaenisme dan prinsip Trisakti Bung Karno (Berdaulat dalam Politik, Berdikari dalam Ekonomi, dan Berkepribadian dalam Kebudayaan), persoalan ini mencerminkan adanya defisit demokrasi ekonomi (Sosio-Demokrasi). Kebijakan penataan daerah seharusnya menempatkan rakyat produsen sebagai subjek utama pembangunan, bukan sebagai objek penderita penertiban. Ketika aparatur negara lebih mengedepankan ketertiban administratif formal sembari mengabaikan hak atas penghidupan yang layak sebagaimana dijamin oleh Pasal 27 ayat (2) dan Pasal 33 UUD 1945, maka telah terjadi penyimpangan terhadap amanat keadilan sosial Pancasila.
+
+Perkembangan mutakhir di lapangan memperlihatkan peningkatan eskalasi tuntutan di mana perwakilan warga melayangkan permohonan audiensi terbuka kepada pimpinan DPRD guna mendesak evaluasi menyeluruh terhadap kebijakan eksekutif daerah ${secondaryCitation}. Di sisi lain, tim riset mencatat kesenjangan data kritis (data gap) yang masih belum dibuka kepada publik, khususnya rincian alokasi pos anggaran kompensasi dinas terkait serta kejelasan dokumen zonasi usaha rakyat jangka panjang. Urgensi penanganan isu ini sangat mendesak karena jika dibiarkan berlarut-larut, persoalan ini berisiko memperdalam jurang kemiskinan struktural dan memicu konflik horizontal di Jawa Barat. Dewan Pengurus Komisariat GMNI Wastukancana merekomendasikan tiga langkah strategis: (1) Pemberlakuan moratorium sementara terhadap seluruh tindakan penertiban sepihak, (2) Pembukaan dialog tripartit terbuka antara Pemda, DPRD, dan serikat warga, serta (3) Pembentukan skema permodalan koperasi kerakyatan berbasis prinsip Berdikari dalam Ekonomi guna menjamin kedaulatan ekonomi rakyat.`;
 
   // 6. BENANG MERAH & WHAT THIS MEANS
   const pattern_interpretation = `[INTERPRETASI ANALITIS] Berdasarkan komparasi rangkaian peristiwa dan respons institusional yang terekam pada rujukan pers ${primaryCitation}, teridentifikasi pola berulang di mana kebijakan penataan daerah kerap diterapkan secara top-down dengan mengabaikan kesiapan instrumen jaring pengaman sosial bagi pelaku ekonomi lemah. Pola respons negara cenderung reaktif setelah adanya sorotan publik di media, alih-alih melakukan mitigasi partisipatif sejak tahap perencanaan awal.`;
@@ -938,11 +940,22 @@ export function generateMeetingNotes(
   claims: Claim[] = []
 ): MeetingNotes {
   const citations = buildDossierCitations(issue, sources);
+  const primaryBadge = citations[0]?.badge || '[Sumber 01]';
+  const locationStr = issue.location || 'Purwakarta';
+
+  const spoken_script = `Kawan-kawan seperjuangan, salam Marhaenis! 
+
+Pada agenda rapat bidang Sosial Politik hari ini, kita membedah secara khusus isu prioritas: "${issue.title}" yang terjadi di ${locationStr}. Isu ini berada pada sektor ${issue.category} dengan skor dampak kerakyatan mencapai ${issue.impact_score || 75}/100 dan indeks perhatian publik ${issue.momentum_score || 60}/100.
+
+Berdasarkan telaah evidensi terhadap ${citations.length} dokumen rujukan pers arus utama ${primaryBadge}, kita menemukan bahwa tindakan kebijakan di lapangan telah menimbulkan implementation gap yang serius. Kebijakan diterapkan secara sepihak tanpa adanya mitigasi jaring pengaman sosial bagi kaum buruh dan produsen kecil.
+
+Sikap politik komisariat sangat tegas: GMNI tidak menolak penataan aturan yang berkeadilan, namun kita menolak keras cara-cara pemiskinan struktural yang merampas ruang hidup kaum Marhaen. Kita mendesak moratorium penertiban dan pembukaan audiensi resmi bersama DPRD. Mari kita bagi peran antara tim advokasi lapangan, tim riset naskah kebijakan, dan tim media!`;
 
   return {
     agenda_title: `Naskah Rapat Sospol: ${issue.title}`,
+    spoken_script,
     factual_basis: [
-      `Isu terpantau aktif di wilayah ${issue.location} pada sektor ${issue.category}.`,
+      `Isu terpantau aktif di wilayah ${issue.location} pada sektor ${issue.category} ${primaryBadge}.`,
       `Skor keparahan dampak tercatat sebesar ${issue.impact_score || 75}/100 dengan ${citations.length} rujukan pers terindeks.`
     ],
     critical_questions: [
@@ -950,9 +963,10 @@ export function generateMeetingNotes(
       `2. Apa langkah taktis komisariat dalam mendampingi warga terdampak di lapangan?`,
       `3. Bagaimana pembagian tugas tim advokasi hukum dan tim riset naskah akademik?`
     ],
+    discussion_position: `GMNI berdiri teguh membela hak ekonomi rakyat pekerja rentan (kaum Marhaen) dan menolak segala bentuk penggusuran ekonomi yang mengabaikan asas keadilan sosial Pancasila.`,
     action_plan_items: [
-      `a. Konsolidasi internal bidang riset dan advokasi sospol.`,
-      `b. Penyusunan draf surat permohonan audiensi ke lembaga perwakilan rakyat daerah.`,
+      `a. Konsolidasi internal bidang riset dan advokasi sospol komisariat.`,
+      `b. Penyusunan dan pengiriman surat permohonan audiensi ke lembaga perwakilan rakyat daerah (DPRD).`,
       `c. Publikasi rilis pers dan media brief kerakyatan ke media massa.`
     ],
     sources_summary: `${citations.length} dokumen rujukan pers terindeks dalam register bukti.`

@@ -511,8 +511,10 @@ export interface PresentationDeck {
 
 export interface MeetingNotes {
   agenda_title: string;
+  spoken_script: string;
   factual_basis: string[];
   critical_questions: string[];
+  discussion_position: string;
   action_plan_items: string[];
   sources_summary: string;
 }
