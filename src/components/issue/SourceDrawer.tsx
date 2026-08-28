@@ -134,8 +134,8 @@ export default function SourceDrawer({ citation, isOpen, onClose }: SourceDrawer
                     <div className="text-xs text-ink-tertiary flex items-center gap-1 mb-1">
                       <Globe className="w-3.5 h-3.5" /> Klasifikasi Sumber
                     </div>
-                    <div className="font-semibold text-ink-primary">
-                      {citation.tier}
+                    <div className="font-semibold text-ink-primary font-mono text-xs">
+                      {citation.source_type || citation.tier}
                     </div>
                   </div>
                 </div>
@@ -146,31 +146,67 @@ export default function SourceDrawer({ citation, isOpen, onClose }: SourceDrawer
                       <Calendar className="w-3.5 h-3.5" /> Tanggal Terbit
                     </div>
                     <div className="text-ink-secondary text-xs">
-                      {citation.published_at ? formatDateIndo(citation.published_at) : 'Tanggal tidak terdata'}
+                      {citation.published_at ? formatDateIndo(citation.published_at) : 'Tanggal tidak tersedia'}
                     </div>
                   </div>
 
                   <div>
                     <div className="text-xs text-ink-tertiary flex items-center gap-1 mb-1">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Diindeks Pada
+                      <ShieldCheck className="w-3.5 h-3.5" /> Penulis / Jurnalis
                     </div>
                     <div className="text-ink-secondary text-xs">
-                      {citation.retrieved_at ? formatDateIndo(citation.retrieved_at) : 'Aktual'}
+                      {citation.author || 'Penulis tidak tercantum'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <div className="text-xs text-ink-tertiary flex items-center gap-1 mb-1">
+                      <Building className="w-3.5 h-3.5" /> Lokus / Wilayah
+                    </div>
+                    <div className="text-ink-secondary text-xs">
+                      {citation.location || 'Nasional / Jawa Barat'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-ink-tertiary flex items-center gap-1 mb-1">
+                      <Calendar className="w-3.5 h-3.5" /> Waktu Ingesti Sistem
+                    </div>
+                    <div className="text-ink-secondary text-xs font-mono">
+                      {citation.ingestion_timestamp ? formatDateIndo(citation.ingestion_timestamp) : 'Aktual'}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Claims Supported */}
-            {citation.supported_claims && citation.supported_claims.length > 0 && (
+            {/* Facts Supported */}
+            {citation.supported_facts && citation.supported_facts.length > 0 && (
               <div className="space-y-2.5 pt-2 border-t border-border">
                 <div className="text-xs font-semibold text-ink-secondary uppercase tracking-wider">
-                  Klaim / Poin Informasi yang Didukung
+                  Fakta Terdokumentasi yang Didukung
                 </div>
                 <div className="space-y-2">
-                  {citation.supported_claims.map((claim, idx) => (
-                    <div key={idx} className="p-3 rounded bg-amber-50/50 border border-amber-200/60 text-xs text-ink-primary leading-relaxed">
+                  {citation.supported_facts.map((fact, idx) => (
+                    <div key={idx} className="p-3 rounded bg-emerald-50/60 border border-emerald-200/80 text-xs text-emerald-950 leading-relaxed font-mono">
+                      {fact}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Claims from Source */}
+            {((citation.claims_from_source && citation.claims_from_source.length > 0) || (citation.supported_claims && citation.supported_claims.length > 0)) && (
+              <div className="space-y-2.5 pt-2 border-t border-border">
+                <div className="text-xs font-semibold text-ink-secondary uppercase tracking-wider">
+                  Klaim / Poin Pernyataan dari Sumber
+                </div>
+                <div className="space-y-2">
+                  {(citation.claims_from_source || citation.supported_claims || []).map((claim, idx) => (
+                    <div key={idx} className="p-3 rounded bg-amber-50/60 border border-amber-200/80 text-xs text-amber-950 leading-relaxed font-serif">
                       "{claim}"
                     </div>
                   ))}
@@ -182,14 +218,14 @@ export default function SourceDrawer({ citation, isOpen, onClose }: SourceDrawer
 
         {/* Footer Actions */}
         <div className="p-5 border-t border-border bg-stone-50 space-y-2">
-          {citation.url && citation.url !== '#' ? (
+          {citation.url && citation.url !== '#' && citation.url.startsWith('http') ? (
             <a
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-btn bg-primary text-white text-xs font-bold hover:bg-primary-hover transition-colors shadow-subtle"
             >
-              <span>Buka Tautan Rujukan Asli</span>
+              <span>Buka Sumber Asli</span>
               <ExternalLink className="w-4 h-4" />
             </a>
           ) : (

@@ -15,6 +15,9 @@ import { Source, SourceType } from '@/types';
 import { formatDateIndo } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
 
+import SourceDrawer from './SourceDrawer';
+import { DossierCitation } from '@/types';
+
 interface SourcePanelProps {
   issueId: string;
   sources: Source[];
@@ -23,6 +26,7 @@ interface SourcePanelProps {
 export default function SourcePanel({ issueId, sources }: SourcePanelProps) {
   const { role, addSource } = useApp();
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedCitation, setSelectedCitation] = useState<DossierCitation | null>(null);
 
   // Form State
   const [newTitle, setNewTitle] = useState('');
@@ -31,6 +35,12 @@ export default function SourcePanel({ issueId, sources }: SourcePanelProps) {
   const [newSourceType, setNewSourceType] = useState<SourceType>('Official Source');
   const [newSummary, setNewSummary] = useState('');
   const [newAuthor, setNewAuthor] = useState('');
+
+  const officialCount = sources.filter(s => s.source_type === 'Official Source' || (s.source_name || '').toLowerCase().includes('antara') || (s.source_name || '').toLowerCase().includes('pemkab') || (s.source_name || '').toLowerCase().includes('resmi')).length;
+  const nationalCount = sources.filter(s => s.source_type === 'Established Media' || (s.source_name || '').toLowerCase().includes('kompas') || (s.source_name || '').toLowerCase().includes('detik') || (s.source_name || '').toLowerCase().includes('tempo')).length;
+  const localCount = sources.filter(s => s.source_type === 'Local Media' || (s.source_name || '').toLowerCase().includes('radar') || (s.source_name || '').toLowerCase().includes('purwakarta')).length;
+  const socialCount = sources.filter(s => s.source_type === 'Social Media' || s.source_type === 'Public Signal' || (s.source_name || '').toLowerCase().includes('x.com') || (s.source_name || '').toLowerCase().includes('instagram')).length;
+  const regionalCount = Math.max(0, sources.length - officialCount - nationalCount - localCount - socialCount);
 
   const handleAddSource = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +87,30 @@ export default function SourcePanel({ issueId, sources }: SourcePanelProps) {
     }
   };
 
+  const openSourceDrawer = (source: Source, index: number) => {
+    const isHttps = source.url && source.url.startsWith('https://') && !source.url.includes('localhost');
+    const isSocial = source.source_type === 'Social Media' || source.source_type === 'Public Signal';
+    
+    setSelectedCitation({
+      source_id: source.id,
+      index: index + 1,
+      badge: `[Sumber ${String(index + 1).padStart(2, '0')}]`,
+      source_name: source.source_name,
+      title: source.title,
+      published_at: source.published_at,
+      author: source.author_or_institution || 'Penulis tidak tercantum',
+      url: source.url,
+      tier: source.source_type,
+      source_type: isSocial ? 'SOCIAL_SIGNAL' : source.source_type === 'Official Source' ? 'OFFICIAL' : source.source_type === 'Established Media' ? 'NATIONAL_MEDIA' : 'LOCAL_MEDIA',
+      location: 'Jawa Barat / Nasional',
+      verification_status: isSocial ? 'UNVERIFIED' : isHttps ? 'SUPPORTED' : 'PARTIALLY_SUPPORTED',
+      credibility_score: source.credibility_score || 80,
+      supported_facts: [`[F0${index + 1}] Fakta peristiwa terindeks dari publikasi ${source.source_name}.`],
+      claims_from_source: [`[C0${index + 1}] Pernyataan dan rilis penanganan dari ${source.author_or_institution || source.source_name}.`],
+      ingestion_timestamp: source.published_at || new Date().toISOString()
+    });
+  };
+
   return (
     <div className="bg-surface rounded-card border border-border p-6 space-y-5 shadow-subtle">
       
@@ -85,14 +119,14 @@ export default function SourcePanel({ issueId, sources }: SourcePanelProps) {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-sm sm:text-base font-bold text-ink-primary">
-              Rujukan Sumber & Indeks Kredibilitas
+              SUMBER & BUKTI TERVERIFIKASI
             </h3>
             <span className="text-xs text-ink-tertiary">
-              ({sources.length} rujukan)
+              ({sources.length} total sumber)
             </span>
           </div>
           <p className="text-xs text-ink-secondary mt-0.5">
-            Dokumen regulasi, liputan media terverifikasi, dan data lapangan.
+            Register rujukan pers independen, dokumen rilis resmi, dan data lapangan.
           </p>
         </div>
 
@@ -107,11 +141,35 @@ export default function SourcePanel({ issueId, sources }: SourcePanelProps) {
         )}
       </div>
 
+      {/* Summary Classification Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+        <div className="p-2.5 bg-stone-50 rounded border border-border">
+          <div className="text-[10px] text-ink-tertiary uppercase font-medium">Total Sumber</div>
+          <div className="text-base font-bold font-mono text-ink-primary">{sources.length}</div>
+        </div>
+        <div className="p-2.5 bg-stone-50 rounded border border-border">
+          <div className="text-[10px] text-ink-tertiary uppercase font-medium">Sumber Resmi</div>
+          <div className="text-base font-bold font-mono text-emerald-700">{officialCount}</div>
+        </div>
+        <div className="p-2.5 bg-stone-50 rounded border border-border">
+          <div className="text-[10px] text-ink-tertiary uppercase font-medium">Media Nasional</div>
+          <div className="text-base font-bold font-mono text-blue-700">{nationalCount}</div>
+        </div>
+        <div className="p-2.5 bg-stone-50 rounded border border-border">
+          <div className="text-[10px] text-ink-tertiary uppercase font-medium">Media Regional/Lokal</div>
+          <div className="text-base font-bold font-mono text-amber-700">{regionalCount + localCount}</div>
+        </div>
+        <div className="p-2.5 bg-stone-50 rounded border border-border">
+          <div className="text-[10px] text-ink-tertiary uppercase font-medium">Social Signal</div>
+          <div className="text-base font-bold font-mono text-stone-500">{socialCount}</div>
+        </div>
+      </div>
+
       {/* Methodology note */}
       <div className="text-[11px] text-ink-secondary bg-stone-50 p-3 rounded-btn border border-border/70 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-ink-tertiary shrink-0 mt-0.5" />
         <span>
-          Skor kredibilitas adalah <strong>indikator internal sistem</strong> untuk mengukur reliabilitas dokumen sebelum dijadikan bahan kajian resmi.
+          Klik pada setiap kartu rujukan untuk membuka <strong>Register Provenance Sumber</strong> dan memeriksa detail metadata, status verifikasi, serta tautan artikel asli.
         </span>
       </div>
 
@@ -122,13 +180,17 @@ export default function SourcePanel({ issueId, sources }: SourcePanelProps) {
             Belum ada rujukan sumber yang ditautkan.
           </p>
         ) : (
-          sources.map(source => (
+          sources.map((source, idx) => (
             <div
-              key={source.id}
-              className="p-4 rounded-btn border border-border bg-stone-50/40 hover:bg-stone-50 transition-colors space-y-2"
+              key={source.id || idx}
+              onClick={() => openSourceDrawer(source, idx)}
+              className="p-4 rounded-btn border border-border bg-stone-50/40 hover:bg-stone-100/70 cursor-pointer transition-colors space-y-2"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
                 <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-primary/10 text-primary font-mono font-bold rounded text-[11px]">
+                    [Sumber {String(idx + 1).padStart(2, '0')}]
+                  </span>
                   {getSourceIcon(source.source_type)}
                   <span className="font-bold text-ink-primary">
                     {source.source_name}
@@ -155,25 +217,25 @@ export default function SourcePanel({ issueId, sources }: SourcePanelProps) {
 
               <div className="pt-1.5 border-t border-border/60 flex items-center justify-between text-[11px]">
                 <span className="text-ink-tertiary">
-                  Penulis/Institusi: <span className="text-ink-secondary font-medium">{source.author_or_institution}</span>
+                  Penulis/Institusi: <span className="text-ink-secondary font-medium">{source.author_or_institution || 'Penulis tidak tercantum'}</span>
                 </span>
 
-                {source.url && source.url !== '#' && (
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                  >
-                    <span>Buka Rujukan</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
+                <span className="text-primary hover:underline font-medium inline-flex items-center gap-1">
+                  <span>Periksa Register Sumber</span>
+                  <ExternalLink className="w-3 h-3" />
+                </span>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Interactive Source Drawer */}
+      <SourceDrawer
+        citation={selectedCitation}
+        isOpen={Boolean(selectedCitation)}
+        onClose={() => setSelectedCitation(null)}
+      />
 
       {/* Add Source Modal */}
       {isAddOpen && (

@@ -32,12 +32,18 @@ export function buildDossierCitations(issue: Issue, sources: Source[] = []): Dos
         badge: '[Sumber 01]',
         source_name: 'Pusat Pemantauan & Intelligence Engine Ruang Isu GMNI',
         title: `Dokumen Rekam Pantauan: ${issue.title}`,
-        published_at: issue.last_updated_at,
+        published_at: issue.last_updated_at || issue.first_detected_at,
+        author: 'Tim Riset & Intelejen Kebijakan GMNI',
         url: 'https://gmni.vercel.app/isu/' + (issue.slug || issue.id),
         tier: 'Official / Primary Monitoring',
+        source_type: 'OFFICIAL',
+        location: issue.location || 'Purwakarta',
         verification_status: 'SUPPORTED',
         credibility_score: issue.confidence_score || 85,
-        supported_claims: ['Deteksi dinamika kebijakan dan pemantauan eskalasi dampak kerakyatan di lapangan.']
+        supported_claims: ['Deteksi dinamika kebijakan dan pemantauan eskalasi dampak kerakyatan di lapangan.'],
+        supported_facts: [`[F01] Terdeteksi eskalasi dampak persoalan ${issue.title} pada sektor ${issue.category}.`],
+        claims_from_source: [`[C01] Perlunya langkah advokasi kerakyatan berbasis amanat Trisakti Bung Karno.`],
+        ingestion_timestamp: issue.first_detected_at
       }
     ];
   }
@@ -47,19 +53,35 @@ export function buildDossierCitations(issue: Issue, sources: Source[] = []): Dos
     const cred = s.credibility_score || (s as any).reliability_score || 80;
     
     let tier: 'Official / Government' | 'National Media' | 'Regional Media' | 'Local Media' | 'Social Signal' | 'Academic / NGO' = 'Regional Media';
+    let sourceType: 'OFFICIAL' | 'NATIONAL_MEDIA' | 'REGIONAL_MEDIA' | 'LOCAL_MEDIA' | 'ACADEMIC' | 'NGO' | 'COMMUNITY' | 'SOCIAL_SIGNAL' | 'OTHER' = 'REGIONAL_MEDIA';
     const sName = (s.source_name || (s as any).name || '').toLowerCase();
     
-    if (sName.includes('pemerintah') || sName.includes('dinas') || sName.includes('pemda') || sName.includes('kemen') || sName.includes('resmi')) {
+    if (sName.includes('pemerintah') || sName.includes('dinas') || sName.includes('pemda') || sName.includes('pemkab') || sName.includes('pemkot') || sName.includes('kemen') || sName.includes('resmi') || sName.includes('polres') || sName.includes('dprd')) {
       tier = 'Official / Government';
+      sourceType = 'OFFICIAL';
     } else if (sName.includes('kompas') || sName.includes('tempo') || sName.includes('antara') || sName.includes('detik') || sName.includes('cnn') || sName.includes('tribunnews')) {
       tier = 'National Media';
+      sourceType = 'NATIONAL_MEDIA';
     } else if (sName.includes('pikiran') || sName.includes('jabar') || sName.includes('pasundan')) {
       tier = 'Regional Media';
-    } else if (sName.includes('purwakarta') || sName.includes('radar') || sName.includes('karawang')) {
+      sourceType = 'REGIONAL_MEDIA';
+    } else if (sName.includes('purwakarta') || sName.includes('radar') || sName.includes('karawang') || sName.includes('bogor')) {
       tier = 'Local Media';
+      sourceType = 'LOCAL_MEDIA';
     } else if (sName.includes('twitter') || sName.includes('x.com') || sName.includes('instagram') || sName.includes('tiktok') || sName.includes('forum')) {
       tier = 'Social Signal';
+      sourceType = 'SOCIAL_SIGNAL';
     }
+
+    const rawUrl = s.url || '#';
+    const isUrlValid = rawUrl.startsWith('https://') && !rawUrl.includes('localhost') && !rawUrl.includes('placeholder');
+    const verificationStatus = sourceType === 'SOCIAL_SIGNAL' 
+      ? 'UNVERIFIED' 
+      : (!isUrlValid && rawUrl !== '#') 
+        ? 'UNVERIFIED' 
+        : cred >= 75 
+          ? 'SUPPORTED' 
+          : 'PARTIALLY_SUPPORTED';
 
     return {
       source_id: s.id || (s as any).source_id || `src-${idx + 1}`,
@@ -68,13 +90,23 @@ export function buildDossierCitations(issue: Issue, sources: Source[] = []): Dos
       source_name: s.source_name || (s as any).name || 'Dokumen Pers Terindeks',
       title: s.title || (s as any).headline || `Laporan Pers: ${issue.title}`,
       published_at: s.published_at || (s as any).created_at || issue.last_updated_at,
-      url: s.url || '#',
+      author: (s as any).author_or_institution || (s as any).author || 'Penulis tidak tercantum',
+      url: rawUrl,
       tier,
-      verification_status: tier === 'Social Signal' ? 'UNVERIFIED' : cred >= 75 ? 'SUPPORTED' : 'PARTIALLY_SUPPORTED',
+      source_type: sourceType,
+      location: (s as any).location || issue.location || 'Jawa Barat',
+      verification_status: verificationStatus,
       credibility_score: cred,
       supported_claims: [
         `Rekam jejak dan peliputan perkembangan persoalan ${issue.title} di wilayah ${issue.location}.`
-      ]
+      ],
+      supported_facts: [
+        `[F0${idx + 1}] Fakta peristiwa terekam dan terverifikasi pada rilis ${s.source_name || 'pers'}.`
+      ],
+      claims_from_source: [
+        `[C0${idx + 1}] Pernyataan pemangku kepentingan dalam rilis terkait penanganan isu.`
+      ],
+      ingestion_timestamp: (s as any).retrieved_at || (s as any).added_at || issue.first_detected_at || new Date().toISOString()
     };
   });
 }

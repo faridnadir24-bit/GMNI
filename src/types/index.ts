@@ -16,6 +16,15 @@ export type SourceType =
   | 'Public Signal';
 
 export type NormalizedSourceType = 
+  | 'OFFICIAL' 
+  | 'NATIONAL_MEDIA' 
+  | 'REGIONAL_MEDIA' 
+  | 'LOCAL_MEDIA' 
+  | 'ACADEMIC' 
+  | 'NGO' 
+  | 'COMMUNITY' 
+  | 'SOCIAL_SIGNAL' 
+  | 'OTHER'
   | 'official' 
   | 'national_media' 
   | 'local_media' 
@@ -354,12 +363,18 @@ export interface DossierCitation {
   title: string;
   url?: string;
   published_at?: string;
+  author?: string;
   retrieved_at?: string;
   tier: string;
+  source_type?: NormalizedSourceType;
   badge: string;
+  location?: string;
   verification_status: SourceVerificationStatus;
   credibility_score: number;
   supported_claims?: string[];
+  supported_facts?: string[];
+  claims_from_source?: string[];
+  ingestion_timestamp?: string;
 }
 
 export interface KeyDataBoxItem {

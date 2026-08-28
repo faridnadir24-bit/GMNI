@@ -322,6 +322,9 @@ export default function IssueDetailPage() {
             {/* FACT VS CLAIM */}
             <FactVsClaim issueId={issue.id} claims={issueClaims} />
 
+            {/* SUMBER & BUKTI TERVERIFIKASI */}
+            <SourcePanel issueId={issue.id} sources={issueSources} />
+
             {/* EVIDENCE LOCKER */}
             <EvidenceLocker
               sources={issueSources}

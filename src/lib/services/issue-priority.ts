@@ -21,13 +21,26 @@ export const PURWAKARTA_DISTRICTS = [
   'Pondoksalam'
 ];
 
-export const SOURCE_CREDIBILITY_MAP = {
+export const SOURCE_CREDIBILITY_MAP: Record<string, number> = {
   official: 95,
   national_media: 85,
+  regional_media: 80,
   local_media: 75,
+  academic: 90,
+  ngo: 80,
+  community: 70,
   social: 45,
   public_signal: 40,
-  unknown: 20
+  unknown: 20,
+  OFFICIAL: 95,
+  NATIONAL_MEDIA: 85,
+  REGIONAL_MEDIA: 80,
+  LOCAL_MEDIA: 75,
+  ACADEMIC: 90,
+  NGO: 80,
+  COMMUNITY: 70,
+  SOCIAL_SIGNAL: 45,
+  OTHER: 50
 };
 
 /**
