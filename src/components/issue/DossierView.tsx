@@ -37,7 +37,10 @@ import {
   generatePolicyBrief,
   generatePresentationDeck,
   generateMeetingNotes,
-  generateSocialMediaContent
+  generateSocialMediaContent,
+  generatePressConferenceBrief,
+  calculateResearchQualityScore,
+  generateDataTable
 } from '@/lib/services/dossier-engine';
 import SourceDrawer from './SourceDrawer';
 
@@ -151,6 +154,9 @@ export default function DossierView({
   const presentationDeck = generatePresentationDeck(issue, issueSources, issueClaims);
   const meetingNotes = generateMeetingNotes(issue, issueSources, issueClaims);
   const socialContent = generateSocialMediaContent(issue, issueSources, issueClaims);
+  const pressConferenceBrief = generatePressConferenceBrief(issue, issueSources, issueClaims);
+  const researchQuality = calculateResearchQualityScore(issue, dossier.sources_list, dossier);
+  const dataTableItems = generateDataTable(issue, dossier.sources_list);
 
   const copyCustomFormat = (content: string) => {
     navigator.clipboard.writeText(content);
@@ -256,7 +262,8 @@ export default function DossierView({
           { id: 'presentation', label: 'Bahan Presentasi', icon: Presentation },
           { id: 'meeting_notes', label: 'Naskah Rapat Sospol', icon: Users },
           { id: 'media_brief', label: 'Media Brief (Rilis Pers)', icon: Share2 },
-          { id: 'social_content', label: 'Konten Sosial Media', icon: Sparkles }
+          { id: 'social_content', label: 'Konten Sosial Media', icon: Sparkles },
+          { id: 'press_conference', label: 'Brief Konferensi Pers', icon: Radio }
         ].map(fmt => {
           const isActive = selectedFormatMode === fmt.id;
           const Icon = fmt.icon;
@@ -629,6 +636,77 @@ export default function DossierView({
           </div>
 
         </div>
+      ) : selectedFormatMode === 'press_conference' ? (
+        /* PRESS CONFERENCE STATEMENT & Q&A VIEW */
+        <div className="bg-surface rounded-card border border-border p-6 sm:p-8 shadow-subtle space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <div>
+              <span className="text-xs font-mono font-bold text-primary uppercase">Format Brief Konferensi Pers & Pernyataan Sikap</span>
+              <h2 className="text-xl font-bold text-ink-primary mt-1">{pressConferenceBrief.statement_title}</h2>
+            </div>
+            <button
+              onClick={() => copyCustomFormat(`${pressConferenceBrief.statement_title}\n\n${pressConferenceBrief.opening_statement}\n\nPOIN ARGUMENTASI:\n${pressConferenceBrief.core_arguments.join('\n')}\n\nTUNTUTAN SIKAP:\n${pressConferenceBrief.demands_and_calls_to_action.join('\n')}`)}
+              className="px-3 py-1.5 rounded-btn bg-stone-100 hover:bg-stone-200 text-xs font-semibold inline-flex items-center gap-1.5"
+            >
+              {copiedFormat ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedFormat ? 'Tersalin!' : 'Salin Naskah Sikap'}</span>
+            </button>
+          </div>
+
+          <div className="space-y-4 text-xs sm:text-sm text-ink-primary font-serif">
+            <div className="p-4 rounded-card bg-red-50/50 border border-red-200/70 space-y-2">
+              <div className="font-bold text-xs uppercase font-sans text-red-900">Pernyataan Pembuka (Opening Statement)</div>
+              <p className="leading-relaxed text-justify">{renderParagraphWithCitations(pressConferenceBrief.opening_statement)}</p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase font-sans text-ink-primary">Pokok Argumentasi Kerakyatan</div>
+              <div className="space-y-2">
+                {pressConferenceBrief.core_arguments.map((arg: string, idx: number) => (
+                  <div key={idx} className="p-3 rounded bg-stone-50 border border-border leading-relaxed">
+                    {renderParagraphWithCitations(arg)}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="font-bold text-xs uppercase font-sans text-primary">Tuntutan Konkret & Panggilan Aksi</div>
+              <div className="space-y-2">
+                {pressConferenceBrief.demands_and_calls_to_action.map((d: string, idx: number) => (
+                  <div key={idx} className="p-3 rounded bg-amber-50/60 border border-amber-200 font-bold text-amber-950 flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>{d}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <div className="font-bold text-xs uppercase font-sans text-ink-primary">Panduan Tanya-Jawab Juru Bicara (Spokesperson Q&A)</div>
+              <div className="space-y-3 font-sans">
+                {pressConferenceBrief.spokesperson_qna.map((qna: { question: string; suggested_answer: string; source_basis: string }, idx: number) => (
+                  <div key={idx} className="p-4 rounded-card bg-stone-50 border border-border space-y-2">
+                    <div className="text-xs font-bold text-ink-primary flex items-center gap-1.5">
+                      <span className="text-primary">Q{idx+1}:</span> {qna.question}
+                    </div>
+                    <div className="text-xs text-ink-secondary bg-white p-3 rounded border border-border leading-relaxed font-serif">
+                      <strong className="font-sans text-ink-primary">Jawaban Disarankan: </strong>
+                      "{qna.suggested_answer}"
+                    </div>
+                    <div className="text-[10px] font-mono text-ink-tertiary">
+                      Dasar Evidensi: {qna.source_basis}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-card bg-stone-100 border border-border text-center text-xs font-bold text-ink-primary">
+              {pressConferenceBrief.closing_summary}
+            </div>
+          </div>
+        </div>
       ) : (
         /* DEFAULT: 21-CHAPTER ACADEMIC RESEARCH DOSSIER */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -717,6 +795,92 @@ export default function DossierView({
 
               <div className="text-sm text-ink-primary leading-relaxed space-y-3 font-serif">
                 {renderParagraphWithCitations(dossier.executive_summary)}
+              </div>
+
+              {/* RESEARCH QUALITY SCORE CARD */}
+              <div className="p-4 rounded-card bg-stone-50 border border-border space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-ink-primary uppercase tracking-wider">
+                      Skor Kualitas Riset: {researchQuality.overall_score}/100
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono text-[10px] font-bold">
+                    TERUJI METODOLOGI
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  <div className="p-2 rounded bg-white border border-border">
+                    <span className="text-ink-tertiary block text-[10px]">Keragaman Sumber</span>
+                    <strong className="text-ink-primary font-bold">{researchQuality.source_diversity}%</strong>
+                  </div>
+                  <div className="p-2 rounded bg-white border border-border">
+                    <span className="text-ink-tertiary block text-[10px]">Independensi</span>
+                    <strong className="text-ink-primary font-bold">{researchQuality.source_independence}%</strong>
+                  </div>
+                  <div className="p-2 rounded bg-white border border-border">
+                    <span className="text-ink-tertiary block text-[10px]">Cakupan Sitasi</span>
+                    <strong className="text-emerald-700 font-bold">{researchQuality.citation_coverage}%</strong>
+                  </div>
+                  <div className="p-2 rounded bg-white border border-border">
+                    <span className="text-ink-tertiary block text-[10px]">Kelengkapan Data</span>
+                    <strong className="text-ink-primary font-bold">{researchQuality.data_completeness}%</strong>
+                  </div>
+                </div>
+                <p className="text-[11px] text-ink-secondary italic leading-relaxed">
+                  {researchQuality.human_explanation}
+                </p>
+              </div>
+
+              {/* TABEL DATA KUANTITATIF & STATUS VERIFIKASI */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between text-xs font-bold text-ink-primary uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                    <span>Tabel Verifikasi Indikator & Data Empiris</span>
+                  </div>
+                  <span className="text-[10px] text-ink-tertiary font-normal">
+                    Format: | Indikator | Nilai | Sumber | Tahun | Status |
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border border-border rounded-lg overflow-hidden">
+                    <thead className="bg-stone-100 text-ink-primary font-bold">
+                      <tr>
+                        <th className="p-2.5 border-b border-border">Indikator</th>
+                        <th className="p-2.5 border-b border-border">Nilai</th>
+                        <th className="p-2.5 border-b border-border">Sumber / Rujukan</th>
+                        <th className="p-2.5 border-b border-border">Tahun/Tanggal</th>
+                        <th className="p-2.5 border-b border-border">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {dataTableItems.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-stone-50/80 transition-colors">
+                          <td className="p-2.5 font-semibold text-ink-primary">{row.indicator}</td>
+                          <td className="p-2.5 font-bold text-primary">{row.value}</td>
+                          <td className="p-2.5 text-ink-secondary">
+                            <span className="font-mono text-[10px] text-blue-700 font-bold mr-1">{row.source_badge}</span>
+                            {row.source_name}
+                          </td>
+                          <td className="p-2.5 text-ink-tertiary">{row.date_or_year}</td>
+                          <td className="p-2.5">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                              row.status === 'TERVERIFIKASI'
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : row.status === 'SEBAGIAN'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-stone-100 text-stone-600 border border-stone-300'
+                            }`}>
+                              {row.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* KEY DATA BOX TABLE */}

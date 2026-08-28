@@ -472,7 +472,7 @@ export interface ResearchDossier {
 
 export type PublicationReadiness = 'RESEARCH_DRAFT' | 'RESEARCH_REVIEWED' | 'PUBLICATION_READY';
 
-export type DossierMode = 'naskah_kajian' | 'policy_brief' | 'presentation' | 'meeting_notes' | 'media_brief' | 'social_content';
+export type DossierMode = 'naskah_kajian' | 'policy_brief' | 'presentation' | 'meeting_notes' | 'media_brief' | 'social_content' | 'press_conference';
 
 export interface SocialMediaContent {
   issue_title: string;
@@ -532,6 +532,36 @@ export interface MeetingNotes {
   discussion_position: string;
   action_plan_items: string[];
   sources_summary: string;
+}
+
+export interface ResearchQualityScore {
+  overall_score: number;
+  source_diversity: number;
+  source_independence: number;
+  citation_coverage: number;
+  evidence_freshness: number;
+  numerical_verification: number;
+  contradiction_level: number;
+  data_completeness: number;
+  human_explanation: string;
+}
+
+export interface DataTableItem {
+  indicator: string;
+  value: string;
+  source_badge: string;
+  source_name: string;
+  date_or_year: string;
+  status: 'TERVERIFIKASI' | 'SEBAGIAN' | 'BELUM_TERSEDIA';
+}
+
+export interface PressConferenceBrief {
+  statement_title: string;
+  opening_statement: string;
+  core_arguments: string[];
+  demands_and_calls_to_action: string[];
+  spokesperson_qna: { question: string; suggested_answer: string; source_basis: string }[];
+  closing_summary: string;
 }
 
 export interface DiscussionBrief {

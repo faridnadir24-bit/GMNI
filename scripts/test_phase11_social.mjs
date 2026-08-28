@@ -35,20 +35,20 @@ const sampleSources = [
 
 const social = generateSocialMediaContent(sampleIssue, sampleSources, []);
 
-// 1. Instagram Carousel
-assert.strictEqual(social.instagram_carousel.length, 5, 'Must have 5 slides');
+// 1. Instagram Carousel (8-10 slides)
+assert.strictEqual(social.instagram_carousel.length, 10, 'Must have 10 slides');
 social.instagram_carousel.forEach(slide => {
   assert.ok(slide.citation && slide.citation.startsWith('[Sumber '), 'Every slide must cite source');
 });
-console.log('✓ Instagram Carousel has 5 slides with source citations on all slides');
+console.log('✓ Instagram Carousel has 10 slides with source citations on all slides');
 
-// 2. X / Twitter Thread
+// 2. X / Twitter Thread (8-10 tweets)
 const thread = social.twitter_thread || social.x_thread || [];
-assert.strictEqual(thread.length, 5, 'Must have 5 tweets');
+assert.strictEqual(thread.length, 10, 'Must have 10 tweets');
 thread.forEach(t => {
   assert.ok(t.citation && t.citation.startsWith('[Sumber '), 'Every tweet must cite source');
 });
-console.log('✓ X / Twitter Thread has 5 tweets with source citations');
+console.log('✓ X / Twitter Thread has 10 tweets with source citations');
 
 // 3. Short Video Script
 assert.ok(social.short_video_script.hook.length > 10, 'Must have video hook');
